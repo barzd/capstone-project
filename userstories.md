@@ -1,0 +1,3 @@
+- As a Student, I want to be able to make a report on a lost item, so that the lost item can go back to the person it belongs to.
+- As a Professor, I want to make a report on a lost item, so that students can find their lost items
+- As a student, I  want to be able to find my items at a guaranteed locations, so that i don't have  to check multiple locations to find my lost items.
