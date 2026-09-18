@@ -40,6 +40,11 @@ body {
 
   margin-top: 0;
   margin-bottom: 30px;
+
+  font-size: clamp(28px, 3vw,40px);
+  line-height: 1.1;
+
+  white-space: nowrap;
 }
 
 .form-group {
