@@ -8,6 +8,7 @@ body {
 }
 
 .login-page {
+  width: 100%;
   min-height: 100vh;
 
   display: flex;
@@ -15,6 +16,8 @@ body {
   align-items: center;
 
   background-color: #00539b;
+
+  padding: 20px;
 }
 
 .login-card {
