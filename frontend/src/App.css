@@ -21,7 +21,8 @@ body {
 }
 
 .login-card {
-  width: 400px;
+  width: 100%;
+  max-width: 500px;
 
   background-color: white;
 
