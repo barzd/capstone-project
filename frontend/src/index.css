@@ -1,0 +1,29 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'Figtree:Bold';
+  src: url('https://static.figma.com/font/Figtree_wght__2') format('woff2');
+  font-style: normal;
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: 'Figtree:ExtraBold';
+  src: url('https://static.figma.com/font/Figtree_wght__2') format('woff2');
+  font-style: normal;
+  font-weight: 800;
+}
+
+@font-face {
+  font-family: 'Figtree:Medium';
+  src: url('https://static.figma.com/font/Figtree_wght__2') format('woff2');
+  font-style: normal;
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: 'Figtree:SemiBold';
+  src: url('https://static.figma.com/font/Figtree_wght__2') format('woff2');
+  font-style: normal;
+  font-weight: 600;
+}
