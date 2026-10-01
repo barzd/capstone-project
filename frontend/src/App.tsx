@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 const assetPathPrefix = "/assets";
+const imgHomeIcon = `${assetPathPrefix}/6c43b.svg`;
 const imgMapPinCheck = `${assetPathPrefix}/3ce53.svg`;
 const imgMapPinCheck1 = `${assetPathPrefix}/64aaa.svg`;
 const imgPackageCheck = `${assetPathPrefix}/c05e7.svg`;
@@ -55,75 +56,111 @@ const sections: Section[] = [
   },
 ];
 
-export default function App() {
-  const [activeItem, setActiveItem] = useState<string>("report-list");
+const pageTitles: Record<string, string> = {
+  "report-lost": "Report Lost Item",
+  "report-found": "Report Found Item",
+  ...Object.fromEntries(sections.flatMap((section) => section.items.map((item) => [item.id, item.label]))),
+};
 
+function TopBar({ onHome }: { onHome: () => void }) {
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
+    <header className="shrink-0 bg-white" data-node-id="18:9">
+      <div className="h-[5px] bg-[#006747]" data-node-id="18:10" />
       <div
-        className="bg-white border border-[#d1fae5] flex flex-col gap-7 px-4 py-6 rounded-2xl w-[280px]"
-        data-node-id="1:3"
+        className="flex h-[72px] items-center gap-5 px-5 sm:px-10"
+        data-node-id="18:11"
       >
-        {/* Logo */}
-        <div className="flex gap-2.5 items-center pl-2">
-          <div
-            className="flex flex-col items-center justify-center rounded-[10px] shrink-0 size-9"
-            style={{
-              backgroundImage:
-                "linear-gradient(90deg, rgba(0,100,86,0.2) 0%, rgba(0,100,86,0.2) 100%), linear-gradient(90deg, rgb(0,100,86) 0%, rgb(0,100,86) 100%)",
-            }}
-          >
-            <div className="relative size-5">
-              <img alt="" className="absolute inset-0 size-full" src={imgMapPinCheck} />
-            </div>
+        <button
+          aria-label="Go to report list"
+          className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f0f7f4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006747]"
+          onClick={onHome}
+          type="button"
+        >
+          <img alt="" className="size-7" src={imgHomeIcon} />
+        </button>
+
+        <div
+          className="flex min-w-0 flex-1 items-center justify-center gap-5"
+          data-node-id="18:14"
+        >
+          <div className="min-w-0 text-center md:w-[520px]" data-node-id="18:15">
+            <p className="truncate font-['Outfit:Bold'] text-[22px] leading-[1.1] font-bold text-black sm:text-[26px] md:text-[30px]">
+              Farmingdale State College
+            </p>
+            <p className="mt-0.5 hidden font-['Inter:Semi_Bold'] text-[11px] leading-[1.2] font-semibold whitespace-nowrap text-[#006747] uppercase sm:block">
+              State University of New York
+            </p>
+          </div>
+          <div className="hidden h-9 w-px shrink-0 bg-[#babfbc] sm:block" data-node-id="18:18" />
+          <p className="hidden w-[240px] font-['Outfit:Bold'] text-[28px] leading-[1.1] font-bold text-[#006747] md:block lg:w-[320px] lg:text-[34px]">
+            Lost &amp; Found
+          </p>
+        </div>
+
+        <div className="size-8 shrink-0" aria-hidden="true" data-node-id="18:20" />
+      </div>
+      <div className="h-px bg-[#d7dfda]" data-node-id="18:21" />
+    </header>
+  );
+}
+
+function Sidebar({
+  activeItem,
+  onSelect,
+}: {
+  activeItem: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <aside className="w-full shrink-0 border-b border-[#d1fae5] bg-white px-4 py-6 md:w-[280px] md:border-r md:border-b-0">
+      <div className="flex flex-col gap-7">
+        <div className="flex items-center gap-2.5 pl-2">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#006456]">
+            <img alt="" className="size-5" src={imgMapPinCheck} />
           </div>
           <div className="flex flex-col gap-px">
-            <p className="font-['Figtree:ExtraBold'] font-extrabold text-[#006456] text-[18px] leading-normal">
+            <p className="font-['Figtree:ExtraBold'] text-[18px] leading-normal font-extrabold text-[#006456]">
               FSC Lost &amp; Found
             </p>
-            <p className="font-['Figtree:Medium'] font-medium text-[#0f172a] text-[11px] leading-normal">
+            <p className="font-['Figtree:Medium'] text-[11px] leading-normal font-medium text-[#0f172a]">
               Farmingdale State College
             </p>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col gap-2.5 w-full">
+        <div className="grid w-full gap-2.5 sm:grid-cols-2 md:grid-cols-1">
           <button
-            onClick={() => setActiveItem("report-lost")}
-            className="bg-[#006456] border border-black drop-shadow-[0px_4px_6px_rgba(22,163,74,0.2)] flex gap-3 items-center p-3.5 rounded-xl w-full cursor-pointer hover:bg-[#005548] transition-colors"
+            className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-black bg-[#006456] p-3.5 drop-shadow-[0px_4px_6px_rgba(22,163,74,0.2)] transition-colors hover:bg-[#005548]"
+            onClick={() => onSelect("report-lost")}
+            type="button"
           >
-            <div className="bg-white/20 flex flex-col items-center justify-center rounded-lg shrink-0 size-9">
-              <div className="relative size-[18px]">
-                <img alt="" className="absolute inset-0 size-full" src={imgMapPinCheck1} />
-              </div>
-            </div>
-            <p className="font-['Figtree:SemiBold'] font-semibold text-[14px] text-white leading-normal text-left flex-1">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/20">
+              <img alt="" className="size-[18px]" src={imgMapPinCheck1} />
+            </span>
+            <span className="flex-1 text-left font-['Figtree:SemiBold'] text-[14px] leading-normal font-semibold text-white">
               Report Lost Item
-            </p>
+            </span>
           </button>
 
           <button
-            onClick={() => setActiveItem("report-found")}
-            className="bg-[#f0fdf4] border border-[#86efac] flex gap-3 items-center p-3.5 rounded-xl w-full cursor-pointer hover:bg-[#dcfce7] transition-colors"
+            className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-[#86efac] bg-[#f0fdf4] p-3.5 transition-colors hover:bg-[#dcfce7]"
+            onClick={() => onSelect("report-found")}
+            type="button"
           >
-            <div className="bg-[rgba(22,163,74,0.13)] flex flex-col items-center justify-center rounded-lg shrink-0 size-9">
-              <div className="relative size-[18px]">
-                <img alt="" className="absolute inset-0 size-full" src={imgPackageCheck} />
-              </div>
-            </div>
-            <p className="font-['Figtree:SemiBold'] font-semibold text-[#0f172a] text-[14px] leading-normal text-left flex-1">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[rgba(22,163,74,0.13)]">
+              <img alt="" className="size-[18px]" src={imgPackageCheck} />
+            </span>
+            <span className="flex-1 text-left font-['Figtree:SemiBold'] text-[14px] leading-normal font-semibold text-[#0f172a]">
               Report Found Item
-            </p>
+            </span>
           </button>
         </div>
 
-        {/* Navigation */}
-        <div className="flex flex-col gap-5 w-full">
+        <nav aria-label="Lost and found navigation" className="grid w-full gap-5 sm:grid-cols-3 md:grid-cols-1">
           {sections.map((section) => (
-            <div key={section.id} className="flex flex-col gap-1 w-full">
+            <div key={section.id} className="flex w-full flex-col gap-1">
               <div className="px-3 pb-1">
-                <p className="font-['Figtree:Bold'] font-bold text-[#94a3b8] text-[11px] uppercase leading-normal">
+                <p className="font-['Figtree:Bold'] text-[11px] leading-normal font-bold text-[#94a3b8] uppercase">
                   {section.title}
                 </p>
               </div>
@@ -131,39 +168,61 @@ export default function App() {
                 const isActive = activeItem === item.id;
                 return (
                   <button
-                    key={item.id}
-                    onClick={() => setActiveItem(item.id)}
-                    className={`flex gap-3 h-10 items-center px-3 rounded-lg w-full cursor-pointer transition-colors ${
-                      isActive
-                        ? "bg-[#f0fdf4]"
-                        : "bg-white hover:bg-gray-50"
+                    aria-current={isActive ? "page" : undefined}
+                    className={`flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg px-3 transition-colors ${
+                      isActive ? "bg-[#f0fdf4]" : "bg-white hover:bg-gray-50"
                     }`}
+                    key={item.id}
+                    onClick={() => onSelect(item.id)}
+                    type="button"
                   >
-                    <div className="relative shrink-0 size-[18px]">
-                      <img alt="" className="absolute inset-0 size-full" src={item.icon} />
-                    </div>
-                    <p
-                      className={`flex-1 text-left leading-normal text-[14px] ${
+                    <img alt="" className="size-[18px] shrink-0" src={item.icon} />
+                    <span
+                      className={`flex-1 text-left text-[14px] leading-normal ${
                         isActive
                           ? "font-['Figtree:SemiBold'] font-semibold text-[#2d3445]"
                           : "font-['Figtree:Medium'] font-medium text-[#0f172a]"
                       }`}
                     >
                       {item.label}
-                    </p>
+                    </span>
                     {item.badge !== undefined && (
-                      <div className="bg-[#e2e8f0] flex items-center justify-center px-1.5 py-0.5 rounded-[10px] shrink-0">
-                        <p className="font-['Figtree:SemiBold'] font-semibold text-[#475569] text-[11px] whitespace-nowrap leading-normal">
-                          {item.badge}
-                        </p>
-                      </div>
+                      <span className="shrink-0 rounded-[10px] bg-[#e2e8f0] px-1.5 py-0.5 font-['Figtree:SemiBold'] text-[11px] leading-normal font-semibold whitespace-nowrap text-[#475569]">
+                        {item.badge}
+                      </span>
                     )}
                   </button>
                 );
               })}
             </div>
           ))}
-        </div>
+        </nav>
+      </div>
+    </aside>
+  );
+}
+
+export default function App() {
+  const [activeItem, setActiveItem] = useState("report-list");
+
+  return (
+    <div className="flex min-h-screen flex-col bg-[#f8faf9]">
+      <TopBar onHome={() => setActiveItem("report-list")} />
+      <div className="flex flex-1 flex-col md:flex-row">
+        <Sidebar activeItem={activeItem} onSelect={setActiveItem} />
+        <main className="flex min-w-0 flex-1 items-start justify-center p-6 sm:p-10">
+          <section className="w-full max-w-4xl rounded-2xl border border-[#d7dfda] bg-white p-6 shadow-sm sm:p-8">
+            <p className="font-['Figtree:Bold'] text-[11px] font-bold tracking-[0.12em] text-[#006747] uppercase">
+              FSC Lost &amp; Found
+            </p>
+            <p className="mt-2 font-['Outfit:Bold'] text-3xl leading-tight font-bold text-[#0f172a]">
+              {pageTitles[activeItem]}
+            </p>
+            <p className="mt-3 max-w-2xl font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#64748b]">
+              This area is ready for the {pageTitles[activeItem].toLowerCase()} workflow to be connected to your Django REST API.
+            </p>
+          </section>
+        </main>
       </div>
     </div>
   );
