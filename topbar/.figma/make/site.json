@@ -1,0 +1,10 @@
+{
+  "description": "Enables seamless navigation by providing a clickable home button that improves user experience and accessibility on websites and apps.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
