@@ -2,9 +2,19 @@ import { useState } from "react";
 import "./App.css";
 
 function App() {
-  const [currentPage, setCurrentPage] = useState("login");
+  const [currentPage, setCurrentPage] = useState("login"); // "login", "register", "home"
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+
+  // State for Registration Prototype
+  const [registerData, setRegisterData] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    regUsername: "",
+    regPassword: "",
+    confirmPassword: "",
+  });
 
   const handleLogin = (e) => {
     if (e) e.preventDefault();
@@ -15,6 +25,21 @@ function App() {
     setCurrentPage("login");
   };
 
+  const handleRegisterChange = (e) => {
+    setRegisterData({
+      ...registerData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleRegisterSubmit = (e) => {
+    e.preventDefault();
+    // Prototype action: Log values and return to login screen
+    console.log("Registered User Data:", registerData);
+    setCurrentPage("login");
+  };
+
+  /* ---------------- HOME SCREEN ---------------- */
   if (currentPage === "home") {
     return (
       <div className="home-page">
@@ -91,6 +116,110 @@ function App() {
     );
   }
 
+  /* ---------------- REGISTER SCREEN ---------------- */
+  if (currentPage === "register") {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h1>Register</h1>
+
+          <form onSubmit={handleRegisterSubmit}>
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="Enter your email"
+                value={registerData.email}
+                onChange={handleRegisterChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="firstName">First Name</label>
+              <input
+                id="firstName"
+                name="firstName"
+                type="text"
+                placeholder="Enter your first name"
+                value={registerData.firstName}
+                onChange={handleRegisterChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="lastName">Last Name</label>
+              <input
+                id="lastName"
+                name="lastName"
+                type="text"
+                placeholder="Enter your last name"
+                value={registerData.lastName}
+                onChange={handleRegisterChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="regUsername">Username</label>
+              <input
+                id="regUsername"
+                name="regUsername"
+                type="text"
+                placeholder="Choose a username"
+                value={registerData.regUsername}
+                onChange={handleRegisterChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="regPassword">Password</label>
+              <input
+                id="regPassword"
+                name="regPassword"
+                type="password"
+                placeholder="Enter password"
+                value={registerData.regPassword}
+                onChange={handleRegisterChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="confirmPassword">Confirm Password</label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                placeholder="Confirm password"
+                value={registerData.confirmPassword}
+                onChange={handleRegisterChange}
+                required
+              />
+            </div>
+
+            <button type="submit" className="login-button">
+              Register
+            </button>
+
+            <button
+              type="button"
+              className="register-button"
+              onClick={() => setCurrentPage("login")}
+            >
+              Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- LOGIN SCREEN ---------------- */
   return (
     <div className="login-page">
       <div className="login-card">
@@ -123,7 +252,11 @@ function App() {
             Log In
           </button>
 
-          <button type="button" className="register-button">
+          <button
+            type="button"
+            className="register-button"
+            onClick={() => setCurrentPage("register")}
+          >
             Register
           </button>
         </form>
@@ -132,4 +265,4 @@ function App() {
   );
 }
 
-export default App;
+export default App;
