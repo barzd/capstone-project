@@ -5,6 +5,8 @@ import path from 'node:path'
 
 import site from "./.figma/make/site.json" with { type: "json" };
 
+// Add this line directly below the imports
+const siteConfiguration = site;
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
