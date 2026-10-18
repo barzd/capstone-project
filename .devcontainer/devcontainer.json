@@ -1,0 +1,14 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "containerEnv": {
+    "PORT": "5173"
+  },
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": {
+      "label": "Vite (Figma Make)",
+      "protocol": "http",
+      "onAutoForward": "openBrowser"
+    }
+  }
+}
