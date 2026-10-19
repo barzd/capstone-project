@@ -96,20 +96,20 @@ The Campus Lost and Found app uses a **client–server architecture** with a **l
 ```mermaid
 flowchart TB
     subgraph Client["Presentation Layer (Client)"]
-        UI[Web / Mobile UI<br>React]
+        UI["Web / Mobile UI<br/>React"]
     end
     subgraph Server["Application Layer (Server)"]
-        API[REST API<br>Node.js + Express]
-        Auth[Auth Module]
-        Items[Item & Claim Services]
-        Notify[Notification Service]
+        API["REST API<br/>Node.js + Express"]
+        Auth["Auth Module"]
+        Items["Item & Claim Services"]
+        Notify["Notification Service"]
     end
     subgraph Data["Data Layer"]
-        DB[(Database<br>PostgreSQL)]
-        IMG[(Image Storage)]
+        DB[("Database<br/>PostgreSQL")]
+        IMG[("Image Storage")]
     end
 
-    UI -- HTTPS / JSON --> API
+    UI -->|"HTTPS / JSON"| API
     API --> Auth
     API --> Items
     Items --> Notify
