@@ -1,10 +1,44 @@
 import { useState } from "react";
 import "./App.css";
 
+const foundItems = [
+  {
+    id: 1,
+    name: "Hydro Flask (Blue)",
+    location: "Campus Center",
+    status: "Available",
+    category: "Drinkware",
+    date: "Today",
+    position: { left: "52%", top: "31%" },
+  },
+  {
+    id: 2,
+    name: "TI-84 Plus Calculator",
+    location: "Gleeson Hall",
+    status: "Available",
+    category: "Electronics",
+    date: "Yesterday",
+    position: { left: "32%", top: "52%" },
+  },
+  {
+    id: 3,
+    name: "Car Key Fob",
+    location: "Library 1st Floor",
+    status: "In Review",
+    category: "Keys",
+    date: "Oct 17",
+    position: { left: "72%", top: "63%" },
+  },
+];
+
 function App() {
   const [currentPage, setCurrentPage] = useState("login"); // "login", "register", "home"
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [selectedItemId, setSelectedItemId] = useState(foundItems[0].id);
+  const [itemSearch, setItemSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All items");
+  const [mapZoom, setMapZoom] = useState(1);
 
   // State for Registration Prototype
   const [registerData, setRegisterData] = useState({
@@ -75,7 +109,12 @@ function App() {
               <div className="card-badge">Browse</div>
               <h3>Found Items Catalog</h3>
               <p>Browse recovered items turned in to campus security.</p>
-              <button className="home-card-btn secondary-btn">View Catalog</button>
+              <button
+                className="home-card-btn secondary-btn"
+                onClick={() => setCurrentPage("map")}
+              >
+                View Catalog
+              </button>
             </div>
 
             <div className="home-card">
@@ -94,25 +133,158 @@ function App() {
                 <span>Location Found</span>
                 <span>Status</span>
               </div>
-              <div className="item-table-row">
-                <span>Hydro Flask (Blue)</span>
-                <span>Campus Center</span>
-                <span className="status-badge available">Available</span>
-              </div>
-              <div className="item-table-row">
-                <span>TI-84 Plus Calculator</span>
-                <span>Gleeson Hall</span>
-                <span className="status-badge available">Available</span>
-              </div>
-              <div className="item-table-row">
-                <span>Car Key Fob</span>
-                <span>Library 1st Floor</span>
-                <span className="status-badge claimed">In Review</span>
-              </div>
+              {foundItems.map((item) => (
+                <div className="item-table-row" key={item.id}>
+                  <span>{item.name}</span>
+                  <span>{item.location}</span>
+                  <span className={`status-badge ${item.status === "Available" ? "available" : "claimed"}`}>
+                    {item.status}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (currentPage === "map") {
+    const filteredItems = foundItems.filter((item) => {
+      const matchesSearch = `${item.name} ${item.location} ${item.category}`
+        .toLowerCase()
+        .includes(itemSearch.toLowerCase());
+      const matchesStatus = statusFilter === "All items" || item.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+    const selectedItem = foundItems.find((item) => item.id === selectedItemId);
+
+    return (
+      <main className="catalog-page">
+        <header className="catalog-header">
+          <div className="catalog-brand">
+            <button className="back-button" onClick={() => setCurrentPage("home")} aria-label="Back to home">
+              ←
+            </button>
+            <div>
+              <p className="eyebrow">FSC LOST & FOUND</p>
+              <h1>Found on campus</h1>
+            </div>
+          </div>
+          <button className="logout-button" onClick={handleLogout}>Log Out</button>
+        </header>
+
+        <section className="catalog-toolbar" aria-label="Catalog filters">
+          <label className="catalog-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              type="search"
+              placeholder="Search items or locations"
+              value={itemSearch}
+              onChange={(event) => setItemSearch(event.target.value)}
+              aria-label="Search items or locations"
+            />
+          </label>
+          <div className="status-filter" aria-label="Filter by status">
+            {["All items", "Available", "In Review"].map((status) => (
+              <button
+                key={status}
+                className={statusFilter === status ? "filter-option active" : "filter-option"}
+                onClick={() => setStatusFilter(status)}
+                aria-pressed={statusFilter === status}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+          <span className="result-count">{filteredItems.length} items</span>
+        </section>
+
+        <section className="catalog-content">
+          <div className="campus-map" aria-label="Schematic campus map with found item locations">
+            <div className="map-topline">
+              <span><span className="map-live-dot" /> CAMPUS LOCATIONS</span>
+              <span>SCHEMATIC MAP</span>
+            </div>
+            <div className="map-viewport">
+              <div className="map-art" style={{ transform: `scale(${mapZoom})` }}>
+                <div className="map-green map-green-north" />
+                <div className="map-green map-green-south" />
+                <div className="map-road map-road-main" />
+                <div className="map-road map-road-cross" />
+                <div className="map-walk map-walk-one" />
+                <div className="map-walk map-walk-two" />
+                <span className="map-label map-label-north">NORTH WALK</span>
+                <span className="map-label map-label-quad">THE QUAD</span>
+                <span className="map-label map-label-east">EAST WALK</span>
+                <div className="map-building building-center"><span>Campus<br />Center</span></div>
+                <div className="map-building building-gleeson"><span>Gleeson<br />Hall</span></div>
+                <div className="map-building building-library"><span>Library</span></div>
+                <div className="map-building building-west"><span>Student<br />Union</span></div>
+                <div className="map-building building-east"><span>Science<br />Hall</span></div>
+                {filteredItems.map((item) => (
+                  <button
+                    key={item.id}
+                    className={`map-pin ${item.id === selectedItemId ? "selected" : ""}`}
+                    style={{ left: item.position.left, top: item.position.top }}
+                    onClick={() => setSelectedItemId(item.id)}
+                    aria-label={`${item.name}, found at ${item.location}`}
+                    title={`${item.name} · ${item.location}`}
+                  >
+                    <span>{item.id}</span>
+                  </button>
+                ))}
+                <span className="map-north">N ↑</span>
+              </div>
+            </div>
+            <div className="map-controls" aria-label="Map zoom controls">
+              <button onClick={() => setMapZoom((zoom) => Math.min(zoom + 0.15, 1.6))} aria-label="Zoom in">+</button>
+              <button onClick={() => setMapZoom((zoom) => Math.max(zoom - 0.15, 0.85))} aria-label="Zoom out">−</button>
+              <button onClick={() => setMapZoom(1)} aria-label="Reset map zoom">↺</button>
+            </div>
+            <div className="map-legend"><span className="legend-pin" /> Found item</div>
+          </div>
+
+          <aside className="item-panel">
+            <div className="item-panel-heading">
+              <div>
+                <p className="eyebrow">RECENTLY TURNED IN</p>
+                <h2>Found items</h2>
+              </div>
+              <span className="panel-count">{filteredItems.length}</span>
+            </div>
+            <div className="item-list">
+              {filteredItems.map((item) => (
+                <button
+                  key={item.id}
+                  className={`found-item ${selectedItemId === item.id ? "active" : ""}`}
+                  onClick={() => setSelectedItemId(item.id)}
+                  aria-pressed={selectedItemId === item.id}
+                >
+                  <span className="item-marker-number">{item.id}</span>
+                  <span className="found-item-copy">
+                    <strong>{item.name}</strong>
+                    <span>{item.location} · {item.date}</span>
+                  </span>
+                  <span className={`status-dot ${item.status === "Available" ? "is-available" : "is-review"}`} aria-label={item.status} />
+                </button>
+              ))}
+              {filteredItems.length === 0 && <p className="empty-results">No items match those filters.</p>}
+            </div>
+            {selectedItem && filteredItems.some((item) => item.id === selectedItem.id) && (
+              <div className="selected-item-detail" aria-live="polite">
+                <p className="eyebrow">SELECTED ITEM</p>
+                <h3>{selectedItem.name}</h3>
+                <p>{selectedItem.category} · {selectedItem.location}</p>
+                <span className={`detail-status ${selectedItem.status === "Available" ? "available" : "in-review"}`}>
+                  {selectedItem.status}
+                </span>
+              </div>
+            )}
+            <p className="map-note">Locations are approximate. Check with campus staff before pickup.</p>
+          </aside>
+        </section>
+      </main>
     );
   }
 
