@@ -41,3 +41,84 @@
   font-style: normal;
   font-weight: 600;
 }
+
+.theme-dark {
+  background-color: #0b0f14;
+  color-scheme: dark;
+}
+
+.theme-dark header,
+.theme-dark aside {
+  background-color: #111820;
+  border-color: #2c3742;
+}
+
+.theme-dark main {
+  background-color: #0b0f14;
+}
+
+.theme-dark .site-title {
+  color: #f8fafc;
+}
+
+.theme-dark .site-subtitle,
+.theme-dark .product-title {
+  color: #6ee7b7;
+}
+
+.theme-dark .bg-white {
+  background-color: #161d24;
+}
+
+.theme-dark .bg-\[\#f8faf9\],
+.theme-dark .bg-\[\#f7faf8\],
+.theme-dark .bg-\[\#f0fdf4\],
+.theme-dark .bg-\[\#e8f5ef\],
+.theme-dark .bg-emerald-50,
+.theme-dark .bg-green-50,
+.theme-dark .bg-lime-50 {
+  background-color: #1b2529;
+}
+
+.theme-dark [class*='border-[#d'],
+.theme-dark [class*='border-emerald'],
+.theme-dark [class*='border-green'],
+.theme-dark [class*='border-lime'] {
+  border-color: #34414c;
+}
+
+.theme-dark [class*='text-[#17212b]'],
+.theme-dark [class*='text-[#0f172a]'],
+.theme-dark [class*='text-[#2d3445]'],
+.theme-dark [class*='text-[#334155]'],
+.theme-dark [class*='text-black'] {
+  color: #f1f5f3;
+}
+
+.theme-dark [class*='text-[#64748b]'],
+.theme-dark [class*='text-[#7c8b85]'],
+.theme-dark [class*='text-[#52615b]'],
+.theme-dark [class*='text-[#94a3b8]'] {
+  color: #aab4bf;
+}
+
+.theme-dark .report-found-button {
+  border-color: #000;
+  background-color: #006456;
+}
+
+.theme-dark .report-found-button:hover {
+  background-color: #005548;
+}
+
+.theme-dark .report-found-icon {
+  background-color: rgb(255 255 255 / 20%);
+}
+
+.theme-dark .report-found-icon img {
+  filter: brightness(0) invert(1);
+}
+
+.theme-dark .report-found-button [class*='text-[#0f172a]'] {
+  color: #fff;
+}
