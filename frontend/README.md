@@ -1,3 +1,20 @@
+# FSC Lost & Found
+
+React 19 and Vite app styled with Tailwind CSS v4.
+
+## Run locally
+
+```sh
+npm install
+npm run dev
+```
+
+## Checks
+
+```sh
+npm run lint
+npm run build
+```
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

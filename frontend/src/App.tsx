@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
+import { Login } from "./logim"
 
-const assetPathPrefix = "/assets"
+const assetPathPrefix = `${import.meta.env.BASE_URL}assets`
 const imgHomeIcon = `${assetPathPrefix}/6c43b.svg`
 const imgMapPinCheck = `${assetPathPrefix}/3ce53.svg`
 const imgMapPinCheck1 = `${assetPathPrefix}/64aaa.svg`
@@ -411,7 +412,7 @@ const pageContent: Record<string, PageContent> = {
   },
 }
 
-function TopBar() {
+function TopBar({ onLogout }: { onLogout: () => void }) {
   return (
     <header className="shrink-0 bg-white" data-node-id="18:9">
       <div className="h-[5px] bg-[#006747]" data-node-id="18:10" />
@@ -429,10 +430,10 @@ function TopBar() {
             className="min-w-0 text-center md:w-[520px]"
             data-node-id="18:15"
           >
-            <p className="site-title truncate font-['Outfit:Bold'] text-[22px] leading-[1.1] font-bold text-black sm:text-[26px] md:text-[30px]">
+            <p className="site-title truncate font-['Outfit'] text-[22px] leading-[1.1] font-bold text-black sm:text-[26px] md:text-[30px]">
               Farmingdale State College
             </p>
-            <p className="site-subtitle mt-0.5 hidden font-['Inter:Semi_Bold'] text-[11px] leading-[1.2] font-semibold whitespace-nowrap text-[#006747] uppercase sm:block">
+            <p className="site-subtitle mt-0.5 hidden font-['Inter'] text-[11px] leading-[1.2] font-semibold whitespace-nowrap text-[#006747] uppercase sm:block">
               State University of New York
             </p>
           </div>
@@ -440,16 +441,18 @@ function TopBar() {
             className="hidden h-9 w-px shrink-0 bg-[#babfbc] sm:block"
             data-node-id="18:18"
           />
-          <p className="product-title hidden w-[240px] font-['Outfit:Bold'] text-[28px] leading-[1.1] font-bold text-[#006747] md:block lg:w-[320px] lg:text-[34px]">
+          <p className="product-title hidden w-[240px] font-['Outfit'] text-[28px] leading-[1.1] font-bold text-[#006747] md:block lg:w-[320px] lg:text-[34px]">
             Lost &amp; Found
           </p>
         </div>
 
-        <div
-          className="size-8 shrink-0"
-          aria-hidden="true"
-          data-node-id="18:20"
-        />
+        <button
+          className="shrink-0 cursor-pointer rounded-lg border border-[#d7dfda] px-3 py-2 font-['Figtree'] text-sm font-semibold text-[#006747] transition-colors hover:bg-[#f0fdf4]"
+          onClick={onLogout}
+          type="button"
+        >
+          Log out
+        </button>
       </div>
       <div className="h-px bg-[#d7dfda]" data-node-id="18:21" />
     </header>
@@ -471,10 +474,10 @@ function Sidebar({
             <img alt="" className="size-5" src={imgMapPinCheck} />
           </div>
           <div className="flex flex-col gap-px">
-            <p className="font-['Figtree:ExtraBold'] text-[18px] leading-normal font-extrabold text-[#006456]">
+            <p className="font-['Figtree'] text-[18px] leading-normal font-extrabold text-[#006456]">
               FSC Lost &amp; Found
             </p>
-            <p className="font-['Figtree:Medium'] text-[11px] leading-normal font-medium text-[#0f172a]">
+            <p className="font-['Figtree'] text-[11px] leading-normal font-medium text-[#0f172a]">
               Farmingdale State College
             </p>
           </div>
@@ -492,7 +495,7 @@ function Sidebar({
             type="button"
           >
             <img alt="" className="size-5" src={imgHomeIcon} />
-            <span className="font-['Figtree:SemiBold'] text-sm font-semibold">
+            <span className="font-['Figtree'] text-sm font-semibold">
               Home
             </span>
           </button>
@@ -507,7 +510,7 @@ function Sidebar({
             <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/20">
               <img alt="" className="size-[18px]" src={imgMapPinCheck1} />
             </span>
-            <span className="flex-1 text-left font-['Figtree:SemiBold'] text-[14px] leading-normal font-semibold text-white">
+            <span className="flex-1 text-left font-['Figtree'] text-[14px] leading-normal font-semibold text-white">
               Report Lost Item
             </span>
           </button>
@@ -520,7 +523,7 @@ function Sidebar({
             <span className="report-found-icon flex size-9 shrink-0 items-center justify-center rounded-lg bg-[rgba(22,163,74,0.13)]">
               <img alt="" className="size-[18px]" src={imgPackageCheck} />
             </span>
-            <span className="flex-1 text-left font-['Figtree:SemiBold'] text-[14px] leading-normal font-semibold text-[#0f172a]">
+            <span className="flex-1 text-left font-['Figtree'] text-[14px] leading-normal font-semibold text-[#0f172a]">
               Report Found Item
             </span>
           </button>
@@ -533,7 +536,7 @@ function Sidebar({
           {sections.map((section) => (
             <div key={section.id} className="flex w-full flex-col gap-1">
               <div className="px-3 pb-1">
-                <p className="font-['Figtree:Bold'] text-[11px] leading-normal font-bold text-[#94a3b8] uppercase">
+                <p className="font-['Figtree'] text-[11px] leading-normal font-bold text-[#94a3b8] uppercase">
                   {section.title}
                 </p>
               </div>
@@ -557,14 +560,14 @@ function Sidebar({
                     <span
                       className={`flex-1 text-left text-[14px] leading-normal ${
                         isActive
-                          ? "font-['Figtree:SemiBold'] font-semibold text-[#2d3445]"
-                          : "font-['Figtree:Medium'] font-medium text-[#0f172a]"
+                          ? "font-['Figtree'] font-semibold text-[#2d3445]"
+                          : "font-['Figtree'] font-medium text-[#0f172a]"
                       }`}
                     >
                       {item.label}
                     </span>
                     {item.badge !== undefined && (
-                      <span className="shrink-0 rounded-[10px] bg-[#e2e8f0] px-1.5 py-0.5 font-['Figtree:SemiBold'] text-[11px] leading-normal font-semibold whitespace-nowrap text-[#475569]">
+                      <span className="shrink-0 rounded-[10px] bg-[#e2e8f0] px-1.5 py-0.5 font-['Figtree'] text-[11px] leading-normal font-semibold whitespace-nowrap text-[#475569]">
                         {item.badge}
                       </span>
                     )}
@@ -586,26 +589,26 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
         <div className="absolute -top-20 -right-16 size-64 rounded-full border-[40px] border-white/10" />
         <div className="absolute -bottom-24 left-1/2 size-56 rounded-full bg-white/5" />
         <div className="relative max-w-2xl">
-          <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.16em] text-emerald-100 uppercase">
+          <p className="font-['Figtree'] text-xs font-bold tracking-[0.16em] text-emerald-100 uppercase">
             Welcome to FSC Lost &amp; Found
           </p>
-          <p className="mt-3 font-['Outfit:Bold'] text-4xl leading-tight font-bold sm:text-5xl">
+          <p className="mt-3 font-['Outfit'] text-4xl leading-tight font-bold sm:text-5xl">
             Let&apos;s get your item back where it belongs.
           </p>
-          <p className="mt-4 max-w-xl font-['Figtree:Medium'] text-base leading-7 font-medium text-emerald-50/90">
+          <p className="mt-4 max-w-xl font-['Figtree'] text-base leading-7 font-medium text-emerald-50/90">
             Report a missing item, help return something you found, or explore
             current reports from across the Farmingdale campus.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <button
-              className="cursor-pointer rounded-xl bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] shadow-lg transition-transform hover:-translate-y-0.5"
+              className="cursor-pointer rounded-xl bg-white px-5 py-3 font-['Figtree'] text-sm font-semibold text-[#006747] shadow-lg transition-transform hover:-translate-y-0.5"
               onClick={() => onSelect("report-lost")}
               type="button"
             >
               Report a lost item
             </button>
             <button
-              className="cursor-pointer rounded-xl border border-white/40 bg-white/10 px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+              className="cursor-pointer rounded-xl border border-white/40 bg-white/10 px-5 py-3 font-['Figtree'] text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
               onClick={() => onSelect("report-found")}
               type="button"
             >
@@ -625,13 +628,13 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
             className="rounded-2xl border border-[#dce9e3] bg-white p-5 shadow-sm"
             key={label}
           >
-            <p className="font-['Outfit:Bold'] text-3xl font-bold text-[#006747]">
+            <p className="font-['Outfit'] text-3xl font-bold text-[#006747]">
               {value}
             </p>
-            <p className="mt-1 font-['Figtree:SemiBold'] text-sm font-semibold text-[#17212b]">
+            <p className="mt-1 font-['Figtree'] text-sm font-semibold text-[#17212b]">
               {label}
             </p>
-            <p className="mt-1 font-['Figtree:Medium'] text-xs font-medium text-[#7c8b85]">
+            <p className="mt-1 font-['Figtree'] text-xs font-medium text-[#7c8b85]">
               {detail}
             </p>
           </div>
@@ -641,15 +644,15 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
       <section className="rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
           <div>
-            <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+            <p className="font-['Figtree'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
               Quick access
             </p>
-            <p className="mt-2 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
+            <p className="mt-2 font-['Outfit'] text-2xl font-bold text-[#17212b]">
               What would you like to do?
             </p>
           </div>
           <button
-            className="cursor-pointer font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] hover:underline"
+            className="cursor-pointer font-['Figtree'] text-sm font-semibold text-[#006747] hover:underline"
             onClick={() => onSelect("report-list")}
             type="button"
           >
@@ -689,10 +692,10 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
               <span className="flex size-11 items-center justify-center rounded-xl bg-white shadow-sm">
                 <img alt="" className="size-5" src={item.icon} />
               </span>
-              <span className="mt-4 block font-['Figtree:SemiBold'] text-base font-semibold text-[#17212b]">
+              <span className="mt-4 block font-['Figtree'] text-base font-semibold text-[#17212b]">
                 {item.title}
               </span>
-              <span className="mt-1 block font-['Figtree:Medium'] text-sm leading-5 font-medium text-[#64748b]">
+              <span className="mt-1 block font-['Figtree'] text-sm leading-5 font-medium text-[#64748b]">
                 {item.text}
               </span>
             </button>
@@ -763,13 +766,13 @@ function ResolvedReportsScreen() {
             />
           </span>
           <div>
-            <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.16em] text-emerald-100 uppercase">
+            <p className="font-['Figtree'] text-xs font-bold tracking-[0.16em] text-emerald-100 uppercase">
               Resolved reports
             </p>
-            <p className="mt-2 font-['Outfit:Bold'] text-3xl leading-tight font-bold sm:text-4xl">
+            <p className="mt-2 font-['Outfit'] text-3xl leading-tight font-bold sm:text-4xl">
               Items reunited with their owners
             </p>
-            <p className="mt-3 max-w-3xl font-['Figtree:Medium'] text-sm leading-6 font-medium text-white/85 sm:text-base">
+            <p className="mt-3 max-w-3xl font-['Figtree'] text-sm leading-6 font-medium text-white/85 sm:text-base">
               Browse recently completed reports and see how the Farmingdale
               community is helping belongings find their way home.
             </p>
@@ -799,13 +802,13 @@ function ResolvedReportsScreen() {
             className="rounded-2xl border border-[#d7e9df] bg-white p-5 shadow-sm"
             key={stat.label}
           >
-            <p className="font-['Outfit:Bold'] text-3xl font-bold text-[#006747]">
+            <p className="font-['Outfit'] text-3xl font-bold text-[#006747]">
               {stat.value}
             </p>
-            <p className="mt-1 font-['Figtree:SemiBold'] text-sm font-semibold text-[#17212b]">
+            <p className="mt-1 font-['Figtree'] text-sm font-semibold text-[#17212b]">
               {stat.label}
             </p>
-            <p className="mt-1 font-['Figtree:Medium'] text-xs font-medium text-[#7c8b85]">
+            <p className="mt-1 font-['Figtree'] text-xs font-medium text-[#7c8b85]">
               {stat.detail}
             </p>
           </div>
@@ -816,13 +819,13 @@ function ResolvedReportsScreen() {
         <div className="border-b border-[#e7eeea] p-6 sm:p-8">
           <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
             <div>
-              <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+              <p className="font-['Figtree'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
                 Reunion history
               </p>
-              <p className="mt-2 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
+              <p className="mt-2 font-['Outfit'] text-2xl font-bold text-[#17212b]">
                 Recently resolved items
               </p>
-              <p className="mt-1 font-['Figtree:Medium'] text-sm font-medium text-[#64748b]">
+              <p className="mt-1 font-['Figtree'] text-sm font-medium text-[#64748b]">
                 Showing {visibleReports.length} completed reports
               </p>
             </div>
@@ -833,7 +836,7 @@ function ResolvedReportsScreen() {
               {filters.map((option) => (
                 <button
                   aria-pressed={filter === option}
-                  className={`cursor-pointer rounded-full px-4 py-2 font-['Figtree:SemiBold'] text-xs font-semibold transition-colors ${
+                  className={`cursor-pointer rounded-full px-4 py-2 font-['Figtree'] text-xs font-semibold transition-colors ${
                     filter === option
                       ? "bg-[#006747] text-white"
                       : "border border-[#dce3e0] bg-white text-[#52615b] hover:bg-emerald-50"
@@ -862,24 +865,24 @@ function ResolvedReportsScreen() {
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-['Figtree:SemiBold'] text-base font-semibold text-[#17212b]">
+                  <p className="font-['Figtree'] text-base font-semibold text-[#17212b]">
                     {report.item}
                   </p>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-['Figtree:SemiBold'] text-[10px] font-semibold text-emerald-700 uppercase">
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-['Figtree'] text-[10px] font-semibold text-emerald-700 uppercase">
                     Resolved
                   </span>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-['Figtree:Medium'] text-xs font-medium text-[#64748b]">
+                <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-['Figtree'] text-xs font-medium text-[#64748b]">
                   <span>{report.category}</span>
                   <span>{report.location}</span>
                   <span>{report.returnedTo}</span>
                 </div>
               </div>
               <div className="flex items-center justify-between gap-4 sm:block sm:text-right">
-                <p className="font-['Figtree:SemiBold'] text-sm font-semibold text-[#334155]">
+                <p className="font-['Figtree'] text-sm font-semibold text-[#334155]">
                   {report.resolved}
                 </p>
-                <p className="mt-1 font-['Figtree:Medium'] text-xs font-medium text-[#94a3b8]">
+                <p className="mt-1 font-['Figtree'] text-xs font-medium text-[#94a3b8]">
                   {report.type}
                 </p>
               </div>
@@ -890,16 +893,16 @@ function ResolvedReportsScreen() {
 
       <section className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="font-['Figtree:SemiBold'] text-base font-semibold text-[#064e3b]">
+          <p className="font-['Figtree'] text-base font-semibold text-[#064e3b]">
             Recognize one of these stories?
           </p>
-          <p className="mt-1 font-['Figtree:Medium'] text-sm font-medium text-[#4f7667]">
+          <p className="mt-1 font-['Figtree'] text-sm font-medium text-[#4f7667]">
             Resolved reports hide private ownership details while preserving
             useful community outcomes.
           </p>
         </div>
         <button
-          className="w-fit shrink-0 cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#00523a]"
+          className="w-fit shrink-0 cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#00523a]"
           type="button"
         >
           Browse active reports
@@ -938,13 +941,13 @@ function SettingsScreen({
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#004f3a] via-[#006747] to-[#00a676] p-7 text-white shadow-xl shadow-emerald-950/10 sm:p-9">
         <div className="absolute -top-16 -right-12 size-52 rounded-full border-[32px] border-white/10" />
         <div className="relative">
-          <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.16em] text-emerald-100 uppercase">
+          <p className="font-['Figtree'] text-xs font-bold tracking-[0.16em] text-emerald-100 uppercase">
             Preferences
           </p>
-          <p className="mt-2 font-['Outfit:Bold'] text-3xl leading-tight font-bold sm:text-4xl">
+          <p className="mt-2 font-['Outfit'] text-3xl leading-tight font-bold sm:text-4xl">
             Make the site comfortable for you
           </p>
-          <p className="mt-3 max-w-2xl font-['Figtree:Medium'] text-sm leading-6 font-medium text-white/85 sm:text-base">
+          <p className="mt-3 max-w-2xl font-['Figtree'] text-sm leading-6 font-medium text-white/85 sm:text-base">
             Adjust the appearance and text size across FSC Lost &amp; Found.
             Your choices are saved on this device.
           </p>
@@ -960,7 +963,7 @@ function SettingsScreen({
                 className="size-6 rounded-full border-[6px] border-[#006747] border-r-emerald-200"
               />
             </span>
-            <p className="font-['Figtree:SemiBold'] text-2xl font-semibold whitespace-nowrap text-[#17212b]">
+            <p className="font-['Figtree'] text-2xl font-semibold whitespace-nowrap text-[#17212b]">
               Dark mode
             </p>
           </div>
@@ -984,10 +987,10 @@ function SettingsScreen({
 
       <section className="rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8">
         <div>
-          <p className="font-['Figtree:SemiBold'] text-lg font-semibold text-[#17212b]">
+          <p className="font-['Figtree'] text-lg font-semibold text-[#17212b]">
             Text size
           </p>
-          <p className="mt-1 font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#64748b]">
+          <p className="mt-1 font-['Figtree'] text-sm leading-6 font-medium text-[#64748b]">
             Change the base text size throughout the website.
           </p>
         </div>
@@ -1007,7 +1010,7 @@ function SettingsScreen({
                 type="button"
               >
                 <span
-                  className={`block font-['Outfit:Bold'] font-bold text-[#17212b] ${
+                  className={`block font-['Outfit'] font-bold text-[#17212b] ${
                     option.id === "small"
                       ? "text-xl"
                       : option.id === "large"
@@ -1017,10 +1020,10 @@ function SettingsScreen({
                 >
                   {option.sample}
                 </span>
-                <span className="mt-3 block font-['Figtree:SemiBold'] text-sm font-semibold text-[#17212b]">
+                <span className="mt-3 block font-['Figtree'] text-sm font-semibold text-[#17212b]">
                   {option.label}
                 </span>
-                <span className="mt-1 block font-['Figtree:Medium'] text-xs font-medium text-[#64748b]">
+                <span className="mt-1 block font-['Figtree'] text-xs font-medium text-[#64748b]">
                   {option.detail} base size
                 </span>
               </button>
@@ -1082,19 +1085,19 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
             </span>
             <div>
               <p
-                className="font-['Figtree:SemiBold'] text-base font-semibold"
+                className="font-['Figtree'] text-base font-semibold"
                 id="example-chat-title"
               >
                 FSC Lost &amp; Found
               </p>
-              <p className="font-['Figtree:Medium'] text-xs font-medium text-emerald-100">
+              <p className="font-['Figtree'] text-xs font-medium text-emerald-100">
                 Staff support · Example chat
               </p>
             </div>
           </div>
           <button
             aria-label="Close example chat"
-            className="cursor-pointer rounded-lg border border-white/25 px-3 py-2 font-['Figtree:SemiBold'] text-xs font-semibold text-white transition-colors hover:bg-white/10"
+            className="cursor-pointer rounded-lg border border-white/25 px-3 py-2 font-['Figtree'] text-xs font-semibold text-white transition-colors hover:bg-white/10"
             onClick={onClose}
             type="button"
           >
@@ -1103,7 +1106,7 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto bg-[#f7faf8] p-5 sm:p-6">
-          <p className="text-center font-['Figtree:Medium'] text-xs font-medium text-[#7c8b85]">
+          <p className="text-center font-['Figtree'] text-xs font-medium text-[#7c8b85]">
             Today
           </p>
           {messages.map((message, index) => (
@@ -1114,7 +1117,7 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
               key={`${message.sender}-${index}`}
             >
               <div
-                className={`max-w-[82%] rounded-2xl px-4 py-3 font-['Figtree:Medium'] text-sm leading-6 font-medium ${
+                className={`max-w-[82%] rounded-2xl px-4 py-3 font-['Figtree'] text-sm leading-6 font-medium ${
                   message.sender === "user"
                     ? "rounded-br-md bg-[#006747] text-white"
                     : "rounded-bl-md border border-[#dce9e3] bg-white text-[#334155]"
@@ -1135,13 +1138,13 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
         >
           <input
             aria-label="Chat message"
-            className="min-w-0 flex-1 rounded-xl border border-[#cbd8d2] bg-white px-4 py-3 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+            className="min-w-0 flex-1 rounded-xl border border-[#cbd8d2] bg-white px-4 py-3 font-['Figtree'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Type a message…"
             value={draft}
           />
           <button
-            className="cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#00523a] disabled:cursor-not-allowed disabled:opacity-50"
+            className="cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#00523a] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!draft.trim()}
             type="submit"
           >
@@ -1174,13 +1177,13 @@ function SectionScreen({ content }: { content: PageContent }) {
             />
           </span>
           <div className="max-w-3xl">
-            <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.16em] text-white/75 uppercase">
+            <p className="font-['Figtree'] text-xs font-bold tracking-[0.16em] text-white/75 uppercase">
               {content.eyebrow}
             </p>
-            <p className="mt-2 font-['Outfit:Bold'] text-3xl leading-tight font-bold sm:text-4xl">
+            <p className="mt-2 font-['Outfit'] text-3xl leading-tight font-bold sm:text-4xl">
               {content.title}
             </p>
-            <p className="mt-3 font-['Figtree:Medium'] text-sm leading-6 font-medium text-white/85 sm:text-base">
+            <p className="mt-3 font-['Figtree'] text-sm leading-6 font-medium text-white/85 sm:text-base">
               {content.description}
             </p>
           </div>
@@ -1193,10 +1196,10 @@ function SectionScreen({ content }: { content: PageContent }) {
             className="rounded-2xl border border-[#dce9e3] bg-white p-5 shadow-sm"
             key={stat.label}
           >
-            <p className="font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
+            <p className="font-['Outfit'] text-2xl font-bold text-[#17212b]">
               {stat.value}
             </p>
-            <p className="mt-1 font-['Figtree:Medium'] text-sm font-medium text-[#64748b]">
+            <p className="mt-1 font-['Figtree'] text-sm font-medium text-[#64748b]">
               {stat.label}
             </p>
           </div>
@@ -1212,19 +1215,19 @@ function SectionScreen({ content }: { content: PageContent }) {
               <img alt="" className="size-6" src={content.icon} />
             </span>
             <div>
-              <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+              <p className="font-['Figtree'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
                 {content.panelLabel}
               </p>
-              <p className="mt-1 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
+              <p className="mt-1 font-['Outfit'] text-2xl font-bold text-[#17212b]">
                 {content.panelTitle}
               </p>
-              <p className="mt-2 max-w-2xl font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#64748b]">
+              <p className="mt-2 max-w-2xl font-['Figtree'] text-sm leading-6 font-medium text-[#64748b]">
                 {content.highlights[0].description}
               </p>
             </div>
           </div>
           <button
-            className="w-fit shrink-0 cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#00523a]"
+            className="w-fit shrink-0 cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree'] text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#00523a]"
             onClick={openChat}
             type="button"
           >
@@ -1235,15 +1238,15 @@ function SectionScreen({ content }: { content: PageContent }) {
         <section className="rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
-              <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+              <p className="font-['Figtree'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
                 {content.panelLabel}
               </p>
-              <p className="mt-2 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
+              <p className="mt-2 font-['Outfit'] text-2xl font-bold text-[#17212b]">
                 {content.panelTitle}
               </p>
             </div>
             <button
-              className="w-fit cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#00523a]"
+              className="w-fit cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree'] text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#00523a]"
               onClick={openChat}
               type="button"
             >
@@ -1256,13 +1259,13 @@ function SectionScreen({ content }: { content: PageContent }) {
                 className={`rounded-2xl border p-5 ${content.tint}`}
                 key={highlight.title}
               >
-                <span className="flex size-8 items-center justify-center rounded-full bg-white font-['Outfit:Bold'] text-sm font-bold text-[#006747] shadow-sm">
+                <span className="flex size-8 items-center justify-center rounded-full bg-white font-['Outfit'] text-sm font-bold text-[#006747] shadow-sm">
                   {index + 1}
                 </span>
-                <p className="mt-4 font-['Figtree:SemiBold'] text-base font-semibold text-[#17212b]">
+                <p className="mt-4 font-['Figtree'] text-base font-semibold text-[#17212b]">
                   {highlight.title}
                 </p>
-                <p className="mt-2 font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#64748b]">
+                <p className="mt-2 font-['Figtree'] text-sm leading-6 font-medium text-[#64748b]">
                   {highlight.description}
                 </p>
               </div>
@@ -1277,6 +1280,7 @@ function SectionScreen({ content }: { content: PageContent }) {
 
 export default function App() {
   const [activeItem, setActiveItem] = useState("home")
+  const [isSignedIn, setIsSignedIn] = useState(false)
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("fsc-dark-mode") === "true",
   )
@@ -1299,13 +1303,17 @@ export default function App() {
     localStorage.setItem("fsc-font-size", fontSize)
   }, [fontSize])
 
+  if (!isSignedIn) {
+    return <Login onLogin={() => setIsSignedIn(true)} />
+  }
+
   return (
     <div
       className={`flex min-h-screen flex-col bg-[#f8faf9] ${
         darkMode ? "theme-dark" : ""
       }`}
     >
-      <TopBar />
+      <TopBar onLogout={() => setIsSignedIn(false)} />
       <div className="flex flex-1 flex-col md:flex-row">
         <Sidebar activeItem={activeItem} onSelect={setActiveItem} />
         <main className="flex min-w-0 flex-1 items-start justify-center p-5 sm:p-8 lg:p-10">
