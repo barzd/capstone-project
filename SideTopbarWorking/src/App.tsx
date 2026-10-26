@@ -78,8 +78,8 @@ type PageContent = {
   icon: string
   gradient: string
   tint: string
-  stats: { value: string label: string }[]
-  highlights: { title: string description: string }[]
+stats: { value: string; label: string }[]
+  highlights: { title: string; description: string }[]
   action: string
   panelLabel: string
   panelTitle: string
