@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
-import siteConfiguration from './.figma/make/site.json'
+import siteConfiguration from '../.figma/make/site.json'
+
 
 
 // Vite config — https://vitejs.dev/config/
@@ -31,18 +32,18 @@ react(),
       },
     },
     server: {
-      host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
-      port: parseInt(process.env.PORT || '8443'),
+      host: 'localhost', // <-- Change this to force standard local HTTP
+      port: parseInt(process.env.PORT || '5173'),
       strictPort: true,
       watch: {
         ignored: [
           '**/.figma/**',
-],
+        ],
       },
     },
     preview: {
-      host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
-      port: parseInt(process.env.PORT || '8443'),
+      host: 'localhost', // <-- Change this here as well
+      port: parseInt(process.env.PORT || '5173'),
     },
   }
 })

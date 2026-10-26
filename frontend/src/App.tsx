@@ -78,8 +78,8 @@ type PageContent = {
   icon: string
   gradient: string
   tint: string
-stats: { value: string; label: string }[]
-  highlights: { title: string; description: string }[]
+ stats: { value: string, label: string }[]
+  highlights: { title: string, description: string }[]
   action: string
   panelLabel: string
   panelTitle: string
@@ -458,9 +458,11 @@ function TopBar() {
 
 function Sidebar({
   activeItem,
+  onLogout,
   onSelect,
 }: {
   activeItem: string
+  onLogout: () => void
   onSelect: (id: string) => void
 }) {
   return (
@@ -574,8 +576,122 @@ function Sidebar({
             </div>
           ))}
         </nav>
+
+        <button
+          className="w-full cursor-pointer rounded-xl border border-[#cbd8d2] bg-white px-4 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#475569] transition-colors hover:border-[#006747] hover:bg-emerald-50 hover:text-[#006747]"
+          onClick={onLogout}
+          type="button"
+        >
+          Log out
+        </button>
       </div>
     </aside>
+  )
+}
+
+function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [registrationMessage, setRegistrationMessage] = useState(false)
+
+  const submitLogin = () => {
+    if (!username.trim() || !password.trim()) {
+      setError("Enter your username and password to continue.")
+      return
+    }
+    setError("")
+    onLogin()
+  }
+
+  return (
+    <main
+      className="relative flex min-h-screen items-center justify-center bg-cover bg-center px-5 py-10"
+      style={{ backgroundImage: "url('/assets/fsc-campus-login.jpg')" }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/5 via-transparent to-emerald-950/35" />
+      <form
+        className="relative z-10 w-full max-w-[420px] rounded-md border border-black/15 bg-white p-7 shadow-2xl sm:p-9"
+        onSubmit={(event) => {
+          event.preventDefault()
+          submitLogin()
+        }}
+      >
+        <div className="text-center">
+          <p className="font-['Outfit:Bold'] text-[30px] leading-tight font-bold text-[#006747]">
+            FSC Lost &amp; Found
+          </p>
+          <p className="mt-2 font-['Figtree:Medium'] text-sm font-medium text-[#64748b]">
+            Sign in to view and manage campus reports
+          </p>
+        </div>
+
+        <div className="mt-7">
+          <label
+            className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
+            htmlFor="username"
+          >
+            Username or Email
+          </label>
+          <input
+            autoComplete="username"
+            className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
+            id="username"
+            onChange={(event) => setUsername(event.target.value)}
+            placeholder="Enter your username or email"
+            type="text"
+            value={username}
+          />
+        </div>
+
+        <div className="mt-4">
+          <label
+            className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
+            htmlFor="password"
+          >
+            Password
+          </label>
+          <input
+            autoComplete="current-password"
+            className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
+            id="password"
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Enter your password"
+            type="password"
+            value={password}
+          />
+        </div>
+
+        {error && (
+          <p className="mt-3 rounded-md bg-red-50 px-3 py-2 font-['Figtree:Medium'] text-xs font-medium text-red-700">
+            {error}
+          </p>
+        )}
+
+        {registrationMessage && (
+          <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 font-['Figtree:Medium'] text-xs font-medium text-emerald-700">
+            Registration will be connected when the account backend is ready.
+          </p>
+        )}
+
+        <button
+          className="mt-6 w-full cursor-pointer rounded bg-[#006747] px-4 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#005548]"
+          type="submit"
+        >
+          Log In
+        </button>
+        <button
+          className="mt-2 w-full cursor-pointer rounded border-2 border-[#006747] bg-white px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] transition-colors hover:bg-emerald-50"
+          onClick={() => {
+            setRegistrationMessage(true)
+            setError("")
+          }}
+          type="button"
+        >
+          Register
+        </button>
+      </form>
+    </main>
   )
 }
 
@@ -585,10 +701,11 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#004f3a] via-[#006747] to-[#00a676] p-7 text-white shadow-xl shadow-emerald-950/10 sm:p-10">
         <div className="absolute -top-20 -right-16 size-64 rounded-full border-[40px] border-white/10" />
         <div className="absolute -bottom-24 left-1/2 size-56 rounded-full bg-white/5" />
-        <div className="relative max-w-2xl">
+        <div className="relative">
           <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.16em] text-emerald-100 uppercase">
             Welcome to FSC Lost &amp; Found
           </p>
+          <div className="max-w-2xl">
           <p className="mt-3 font-['Outfit:Bold'] text-4xl leading-tight font-bold sm:text-5xl">
             Let&apos;s get your item back where it belongs.
           </p>
@@ -611,6 +728,7 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
             >
               I found something
             </button>
+          </div>
           </div>
         </div>
       </section>
@@ -1276,6 +1394,7 @@ function SectionScreen({ content }: { content: PageContent }) {
 }
 
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [activeItem, setActiveItem] = useState("home")
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("fsc-dark-mode") === "true",
@@ -1299,6 +1418,10 @@ export default function App() {
     localStorage.setItem("fsc-font-size", fontSize)
   }, [fontSize])
 
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />
+  }
+
   return (
     <div
       className={`flex min-h-screen flex-col bg-[#f8faf9] ${
@@ -1307,7 +1430,11 @@ export default function App() {
     >
       <TopBar />
       <div className="flex flex-1 flex-col md:flex-row">
-        <Sidebar activeItem={activeItem} onSelect={setActiveItem} />
+        <Sidebar
+          activeItem={activeItem}
+          onLogout={() => setIsLoggedIn(false)}
+          onSelect={setActiveItem}
+        />
         <main className="flex min-w-0 flex-1 items-start justify-center p-5 sm:p-8 lg:p-10">
           {activeItem === "home" ? (
             <HomeScreen onSelect={setActiveItem} />
