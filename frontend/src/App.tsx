@@ -595,19 +595,96 @@ function Sidebar({
   )
 }
 
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  const [username, setUsername] = useState("")
+function LoginScreen({
+  error,
+  onAuthenticated,
+}: {
+  error: string
+  onAuthenticated: () => void
+}) {
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [identifier, setIdentifier] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [registrationMessage, setRegistrationMessage] = useState(false)
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [formError, setFormError] = useState("")
+  const [formMessage, setFormMessage] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const submitLogin = () => {
-    if (!username.trim() || !password.trim()) {
-      setError("Enter your username and password to continue.")
+  const submitCredentials = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setFormError("")
+    setFormMessage("")
+
+    if (isRegistering && password !== confirmPassword) {
+      setFormError("Passwords do not match.")
       return
     }
-    setError("")
-    onLogin()
+
+    setIsSubmitting(true)
+    try {
+      const csrfResponse = await fetch(`${API_BASE_URL}/api/auth/csrf/`, {
+        headers: { Accept: "application/json" },
+        credentials: "include",
+      })
+      if (!csrfResponse.ok) {
+        setFormError("Could not get a CSRF token from Django. Reload and try again.")
+        return
+      }
+      const { csrfToken } = await csrfResponse.json()
+
+      const endpoint = isRegistering
+        ? `${API_BASE_URL}/api/auth/registration/`
+        : `${API_BASE_URL}/api/auth/login/`
+      const body = isRegistering
+        ? {
+            username: identifier.trim(),
+            email: email.trim(),
+            password1: password,
+            password2: confirmPassword,
+          }
+        : {
+            ...(identifier.includes("@")
+              ? { email: identifier.trim() }
+              : { username: identifier.trim() }),
+            password,
+          }
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        credentials: "include",
+        body: JSON.stringify(body),
+      })
+
+      const responseBody = await response.json().catch(() => null)
+      if (!response.ok) {
+        const firstError = responseBody && Object.values(responseBody).flat()[0]
+        setFormError(
+          typeof firstError === "string"
+            ? firstError
+            : "Could not complete the request. Check your details and try again.",
+        )
+        return
+      }
+
+      if (isRegistering) {
+        setIsRegistering(false)
+        setIdentifier(email.trim())
+        setPassword("")
+        setConfirmPassword("")
+        setFormMessage("Account created. Sign in with your new credentials.")
+      } else {
+        onAuthenticated()
+      }
+    } catch {
+      setFormError("Could not reach Django. Check that the backend is running.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -616,87 +693,167 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       style={{ backgroundImage: "url('/assets/fsc-campus-login.jpg')" }}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/5 via-transparent to-emerald-950/35" />
-      <form
+      <section
         className="relative z-10 w-full max-w-[420px] rounded-md border border-black/15 bg-white p-7 shadow-2xl sm:p-9"
-        onSubmit={(event) => {
-          event.preventDefault()
-          submitLogin()
-        }}
       >
         <div className="text-center">
           <p className="font-['Outfit:Bold'] text-[30px] leading-tight font-bold text-[#006747]">
             FSC Lost &amp; Found
           </p>
           <p className="mt-2 font-['Figtree:Medium'] text-sm font-medium text-[#64748b]">
-            Sign in to view and manage campus reports
+            {isRegistering
+              ? "Create an account to join the campus community"
+              : "Sign in to view and manage campus reports"}
           </p>
         </div>
 
-        <div className="mt-7">
-          <label
-            className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
-            htmlFor="username"
-          >
-            Username or Email
-          </label>
-          <input
-            autoComplete="username"
-            className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
-            id="username"
-            onChange={(event) => setUsername(event.target.value)}
-            placeholder="Enter your username or email"
-            type="text"
-            value={username}
-          />
-        </div>
-
-        <div className="mt-4">
-          <label
-            className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
-            htmlFor="password"
-          >
-            Password
-          </label>
-          <input
-            autoComplete="current-password"
-            className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
-            id="password"
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Enter your password"
-            type="password"
-            value={password}
-          />
-        </div>
-
-        {error && (
+        {(formError || error) && (
           <p className="mt-3 rounded-md bg-red-50 px-3 py-2 font-['Figtree:Medium'] text-xs font-medium text-red-700">
-            {error}
+            {formError || error}
           </p>
         )}
 
-        {registrationMessage && (
+        {formMessage && (
           <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 font-['Figtree:Medium'] text-xs font-medium text-emerald-700">
-            Registration will be connected when the account backend is ready.
+            {formMessage}
           </p>
         )}
 
-        <button
-          className="mt-6 w-full cursor-pointer rounded bg-[#006747] px-4 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#005548]"
-          type="submit"
-        >
-          Log In
-        </button>
+        <form className="mt-7" onSubmit={submitCredentials}>
+          <label
+            className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
+            htmlFor="login-identifier"
+          >
+            {isRegistering ? "Username" : "Username or Email"}
+          </label>
+          <input
+            autoComplete={isRegistering ? "username" : "username"}
+            className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
+            id="login-identifier"
+            onChange={(event) => setIdentifier(event.target.value)}
+            placeholder={isRegistering ? "Choose a username" : "Enter your username or email"}
+            required
+            type="text"
+            value={identifier}
+          />
+
+          {isRegistering && (
+            <div className="mt-4">
+              <label
+                className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
+                htmlFor="register-email"
+              >
+                Email
+              </label>
+              <input
+                autoComplete="email"
+                className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
+                id="register-email"
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.edu"
+                required
+                type="email"
+                value={email}
+              />
+            </div>
+          )}
+
+          <div className="mt-4">
+            <label
+              className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
+              htmlFor="login-password"
+            >
+              Password
+            </label>
+            <input
+              autoComplete={isRegistering ? "new-password" : "current-password"}
+              className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
+              id="login-password"
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter your password"
+              required
+              type="password"
+              value={password}
+            />
+          </div>
+
+          {isRegistering && (
+            <div className="mt-4">
+              <label
+                className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
+                htmlFor="confirm-password"
+              >
+                Confirm password
+              </label>
+              <input
+                autoComplete="new-password"
+                className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
+                id="confirm-password"
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Re-enter your password"
+                required
+                type="password"
+                value={confirmPassword}
+              />
+            </div>
+          )}
+
+          <button
+            className="mt-6 w-full cursor-pointer rounded bg-[#006747] px-4 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#005548] disabled:cursor-wait disabled:opacity-70"
+            disabled={isSubmitting}
+            type="submit"
+          >
+            {isSubmitting
+              ? "Please wait..."
+              : isRegistering
+                ? "Create Account"
+                : "Log In"}
+          </button>
+        </form>
+
         <button
           className="mt-2 w-full cursor-pointer rounded border-2 border-[#006747] bg-white px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] transition-colors hover:bg-emerald-50"
           onClick={() => {
-            setRegistrationMessage(true)
-            setError("")
+            setIsRegistering(!isRegistering)
+            setFormError("")
+            setFormMessage("")
           }}
           type="button"
         >
-          Register
+          {isRegistering ? "Back to Log In" : "Register"}
         </button>
-      </form>
+
+        <div className="my-5 flex items-center gap-3 text-xs font-medium text-[#64748b]">
+          <span className="h-px flex-1 bg-[#d1d5db]" />
+          OR
+          <span className="h-px flex-1 bg-[#d1d5db]" />
+        </div>
+
+        <button
+          className="flex w-full cursor-pointer items-center justify-center gap-3 rounded border border-[#9ca3af] bg-white px-4 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#17212b] shadow-sm transition-colors hover:bg-[#f8faf9]"
+          onClick={() => {
+            const returnToApp = new URL(window.location.origin)
+            if (
+              returnToApp.hostname === "localhost" &&
+              new URL(API_BASE_URL).hostname === "127.0.0.1"
+            ) {
+              returnToApp.hostname = "127.0.0.1"
+            }
+            returnToApp.searchParams.set("auth", "google")
+            const googleLoginUrl = new URL(
+              "/accounts/google/login/",
+              API_BASE_URL,
+            )
+            googleLoginUrl.searchParams.set("process", "login")
+            googleLoginUrl.searchParams.set("next", returnToApp.toString())
+            window.location.assign(googleLoginUrl.toString())
+          }}
+          type="button"
+        >
+          <span aria-hidden="true" className="font-['Outfit:Bold'] text-lg font-bold text-[#4285f4]">G</span>
+          Continue with Google
+        </button>
+      </section>
     </main>
   )
 }
@@ -1285,6 +1442,15 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
 // ---------------------------------------------------------------------------
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"
+if (
+  typeof window !== "undefined" &&
+  window.location.hostname === "localhost" &&
+  new URL(API_BASE_URL).hostname === "127.0.0.1"
+) {
+  const canonicalUrl = new URL(window.location.href)
+  canonicalUrl.hostname = "127.0.0.1"
+  window.location.replace(canonicalUrl.toString())
+}
 
 const itemCategories = [
   "Electronics",
@@ -1967,9 +2133,11 @@ function SectionScreen({ content }: { content: PageContent }) {
 }
 
 export default function App() {
+  const authReturn = new URLSearchParams(window.location.search).get("auth")
   const returningFromAdmin =
     new URLSearchParams(window.location.search).get("admin_inventory") === "1"
   const [isLoggedIn, setIsLoggedIn] = useState(returningFromAdmin)
+  const [authError, setAuthError] = useState("")
   const [activeItem, setActiveItem] = useState(
     returningFromAdmin ? "inventory" : "home",
   )
@@ -1980,6 +2148,48 @@ export default function App() {
     const saved = localStorage.getItem("fsc-font-size")
     return saved === "small" || saved === "large" ? saved : "default"
   })
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function checkDjangoSession() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/user/`, {
+          headers: { Accept: "application/json" },
+          credentials: "include",
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          if (authReturn === "google") {
+            setAuthError(
+              response.status === 401 || response.status === 403
+                ? "Django did not receive the Google session. Use 127.0.0.1 for the app and try again."
+                : `Django could not verify the session (HTTP ${response.status}).`,
+            )
+          }
+          return
+        }
+
+        setIsLoggedIn(true)
+        if (authReturn === "google") setActiveItem("home")
+      } catch {
+        if (controller.signal.aborted) return
+        if (authReturn === "google") {
+          setAuthError("Could not reach Django to verify your Google sign-in.")
+        }
+      } finally {
+        if (authReturn === "google" && !controller.signal.aborted) {
+          const url = new URL(window.location.href)
+          url.searchParams.delete("auth")
+          window.history.replaceState({}, "", url)
+        }
+      }
+    }
+
+    void checkDjangoSession()
+    return () => controller.abort()
+  }, [authReturn])
 
   useEffect(() => {
     localStorage.setItem("fsc-dark-mode", String(darkMode))
@@ -2004,7 +2214,12 @@ export default function App() {
   }, [fontSize])
 
   if (!isLoggedIn) {
-    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />
+    return (
+      <LoginScreen
+        error={authError}
+        onAuthenticated={() => setIsLoggedIn(true)}
+      />
+    )
   }
 
   return (
@@ -2017,7 +2232,28 @@ export default function App() {
       <div className="flex flex-1 flex-col md:flex-row">
         <Sidebar
           activeItem={activeItem}
-          onLogout={() => setIsLoggedIn(false)}
+          onLogout={async () => {
+            const csrfCookie = document.cookie
+              .split("; ")
+              .find((entry) => entry.startsWith("csrftoken="))
+            const csrfToken = csrfCookie?.slice("csrftoken=".length)
+
+            try {
+              const response = await fetch(`${API_BASE_URL}/api/auth/logout/`, {
+                method: "POST",
+                headers: csrfToken ? { "X-CSRFToken": csrfToken } : {},
+                credentials: "include",
+              })
+
+              if (!response.ok) {
+                setAuthError("Django could not end the session. Sign in again after refreshing.")
+              }
+            } catch {
+              setAuthError("Could not reach Django to end the session.")
+            }
+
+            setIsLoggedIn(false)
+          }}
           onSelect={setActiveItem}
         />
         <main className="flex min-w-0 flex-1 items-start justify-center p-5 sm:p-8 lg:p-10">
