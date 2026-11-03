@@ -1271,6 +1271,461 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Report Lost Item
+// Saves a new item with status "lost" to the Django backend (POST /api/items/).
+// Change the backend address with VITE_API_URL in frontend/.env if needed.
+// ---------------------------------------------------------------------------
+
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"
+
+const itemCategories = [
+  "Electronics",
+  "Identification / cards",
+  "Keys",
+  "Wallet / money",
+  "Bag / backpack",
+  "Clothing",
+  "Water bottle",
+  "Books / school supplies",
+  "Jewelry / accessories",
+  "Other",
+]
+
+const campusLocations = [
+  "Campus Center",
+  "Greenley Library",
+  "Nold Athletic Complex",
+  "Laffin Hall",
+  "Lupton Hall",
+  "Whitman Hall",
+  "Hale Hall",
+  "Knapp Hall",
+  "Thompson Hall",
+  "Roosevelt Hall",
+  "Parking lot",
+  "Outdoors / walkway",
+  "Other",
+]
+
+type LostReportForm = {
+  title: string
+  category: string
+  color: string
+  location: string
+  otherLocation: string
+  date: string
+  description: string
+}
+
+type SavedItem = {
+  id: string
+  title: string
+  category: string
+  color: string
+  location: string
+  date: string
+  description: string
+}
+
+const emptyLostReport: LostReportForm = {
+  title: "",
+  category: "",
+  color: "",
+  location: "",
+  otherLocation: "",
+  date: "",
+  description: "",
+}
+
+function todayIso() {
+  const now = new Date()
+  const offset = now.getTimezoneOffset() * 60000
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10)
+}
+
+function formatReportDate(isoDate: string) {
+  const [year, month, day] = isoDate.split("-").map(Number)
+  if (!year || !month || !day) return isoDate
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  })
+}
+
+const fieldLabelClass =
+  "block font-['Figtree:SemiBold'] text-sm font-semibold text-[#17212b]"
+const fieldInputClass =
+  "mt-1.5 w-full rounded-xl border border-[#cbd8d2] bg-white px-3.5 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+const fieldErrorClass =
+  "mt-1 font-['Figtree:Medium'] text-xs font-medium text-red-600"
+
+function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
+  const [form, setForm] = useState<LostReportForm>(emptyLostReport)
+  const [errors, setErrors] = useState<Partial<Record<keyof LostReportForm, string>>>({})
+  const [submitting, setSubmitting] = useState(false)
+  const [serverError, setServerError] = useState("")
+  const [savedItem, setSavedItem] = useState<SavedItem | null>(null)
+
+  const update = (field: keyof LostReportForm, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }))
+    setErrors((current) => ({ ...current, [field]: undefined }))
+  }
+
+  const validate = () => {
+    const next: Partial<Record<keyof LostReportForm, string>> = {}
+    if (!form.title.trim()) next.title = "Tell us what the item is."
+    if (!form.category) next.category = "Choose a category."
+    if (!form.location) next.location = "Choose where you last had it."
+    if (form.location === "Other" && !form.otherLocation.trim())
+      next.otherLocation = "Describe the location."
+    if (!form.date) next.date = "Choose the date you lost it."
+    else if (form.date > todayIso()) next.date = "The date can't be in the future."
+    setErrors(next)
+    return Object.keys(next).length === 0
+  }
+
+  const submit = async () => {
+    setServerError("")
+    if (!validate()) return
+
+    const payload = {
+      title: form.title.trim(),
+      category: form.category,
+      color: form.color.trim(),
+      location:
+        form.location === "Other" ? form.otherLocation.trim() : form.location,
+      date: form.date,
+      description: form.description.trim(),
+      status: "lost",
+    }
+
+    setSubmitting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/items/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        const detail =
+          body && typeof body === "object"
+            ? Object.entries(body)
+                .map(([field, messages]) =>
+                  `${field}: ${Array.isArray(messages) ? messages.join(" ") : String(messages)}`,
+                )
+                .join(" · ")
+            : ""
+        setServerError(
+          `The server couldn't save your report (error ${response.status}).${detail ? ` ${detail}` : ""}`,
+        )
+        return
+      }
+      setSavedItem((await response.json()) as SavedItem)
+    } catch {
+      setServerError(
+        "Couldn't reach the server. Make sure the backend is running (python manage.py runserver) and try again.",
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const startOver = () => {
+    setForm(emptyLostReport)
+    setErrors({})
+    setServerError("")
+    setSavedItem(null)
+  }
+
+  const content = pageContent["report-lost"]
+
+  return (
+    <div className="w-full max-w-6xl space-y-6">
+      <section
+        className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${content.gradient} p-7 text-white shadow-xl shadow-slate-900/10 sm:p-9`}
+      >
+        <div className="absolute -top-16 -right-12 size-52 rounded-full border-[32px] border-white/10" />
+        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
+          <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
+            <img alt="" className="size-8 brightness-0 invert" src={content.icon} />
+          </span>
+          <div className="max-w-3xl">
+            <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.16em] text-white/75 uppercase">
+              {content.eyebrow}
+            </p>
+            <p className="mt-2 font-['Outfit:Bold'] text-3xl leading-tight font-bold sm:text-4xl">
+              {content.title}
+            </p>
+            <p className="mt-3 font-['Figtree:Medium'] text-sm leading-6 font-medium text-white/85 sm:text-base">
+              {content.description}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {savedItem ? (
+        <section className="rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8">
+          <div className="flex items-start gap-4">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#006747]">
+              <img alt="" className="size-6" src={imgMapPinCheck} />
+            </span>
+            <div>
+              <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+                Report submitted
+              </p>
+              <p className="mt-1 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
+                Your report for &ldquo;{savedItem.title}&rdquo; is live
+              </p>
+              <p className="mt-2 max-w-2xl font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#64748b]">
+                Your report is saved. We&apos;ll notify you when a similar found
+                item is reported.
+              </p>
+            </div>
+          </div>
+
+          <dl className="mt-6 grid gap-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 sm:grid-cols-2">
+            {[
+              ["Item", savedItem.title],
+              ["Category", savedItem.category],
+              ["Color", savedItem.color || "—"],
+              ["Last seen", savedItem.location],
+              ["Date lost", formatReportDate(savedItem.date)],
+              ["Report ID", savedItem.id],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt className="font-['Figtree:Medium'] text-xs font-medium text-[#64748b]">
+                  {label}
+                </dt>
+                <dd className="mt-0.5 font-['Figtree:SemiBold'] text-sm font-semibold break-words text-[#17212b]">
+                  {value}
+                </dd>
+              </div>
+            ))}
+            {savedItem.description && (
+              <div className="sm:col-span-2">
+                <dt className="font-['Figtree:Medium'] text-xs font-medium text-[#64748b]">
+                  Details
+                </dt>
+                <dd className="mt-0.5 font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#17212b]">
+                  {savedItem.description}
+                </dd>
+              </div>
+            )}
+          </dl>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button
+              className="cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#00523a]"
+              onClick={onDone}
+              type="button"
+            >
+              Back to home
+            </button>
+            <button
+              className="cursor-pointer rounded-xl border border-[#cbd8d2] bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#334155] transition-colors hover:bg-emerald-50"
+              onClick={startOver}
+              type="button"
+            >
+              Report another item
+            </button>
+          </div>
+        </section>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+          <form
+            className="min-w-0 rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8"
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault()
+              void submit()
+            }}
+          >
+            <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+              Item details
+            </p>
+            <p className="mt-2 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
+              What did you lose?
+            </p>
+
+            <div className="mt-6 grid gap-5 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className={fieldLabelClass} htmlFor="lost-title">
+                  Item name <span className="text-red-600">*</span>
+                </label>
+                <input
+                  className={fieldInputClass}
+                  id="lost-title"
+                  maxLength={200}
+                  onChange={(event) => update("title", event.target.value)}
+                  placeholder="e.g. Black JanSport backpack"
+                  value={form.title}
+                />
+                {errors.title && <p className={fieldErrorClass}>{errors.title}</p>}
+              </div>
+
+              <div>
+                <label className={fieldLabelClass} htmlFor="lost-category">
+                  Category <span className="text-red-600">*</span>
+                </label>
+                <select
+                  className={fieldInputClass}
+                  id="lost-category"
+                  onChange={(event) => update("category", event.target.value)}
+                  value={form.category}
+                >
+                  <option value="">Select a category</option>
+                  {itemCategories.map((category) => (
+                    <option key={category}>{category}</option>
+                  ))}
+                </select>
+                {errors.category && (
+                  <p className={fieldErrorClass}>{errors.category}</p>
+                )}
+              </div>
+
+              <div>
+                <label className={fieldLabelClass} htmlFor="lost-color">
+                  Color
+                </label>
+                <input
+                  className={fieldInputClass}
+                  id="lost-color"
+                  maxLength={50}
+                  onChange={(event) => update("color", event.target.value)}
+                  placeholder="e.g. Black"
+                  value={form.color}
+                />
+              </div>
+
+              <div>
+                <label className={fieldLabelClass} htmlFor="lost-location">
+                  Last seen at <span className="text-red-600">*</span>
+                </label>
+                <select
+                  className={fieldInputClass}
+                  id="lost-location"
+                  onChange={(event) => update("location", event.target.value)}
+                  value={form.location}
+                >
+                  <option value="">Select a campus location</option>
+                  {campusLocations.map((location) => (
+                    <option key={location}>{location}</option>
+                  ))}
+                </select>
+                {errors.location && (
+                  <p className={fieldErrorClass}>{errors.location}</p>
+                )}
+              </div>
+
+              <div>
+                <label className={fieldLabelClass} htmlFor="lost-date">
+                  Date lost <span className="text-red-600">*</span>
+                </label>
+                <input
+                  className={fieldInputClass}
+                  id="lost-date"
+                  max={todayIso()}
+                  onChange={(event) => update("date", event.target.value)}
+                  type="date"
+                  value={form.date}
+                />
+                {errors.date && <p className={fieldErrorClass}>{errors.date}</p>}
+              </div>
+
+              {form.location === "Other" && (
+                <div className="sm:col-span-2">
+                  <label className={fieldLabelClass} htmlFor="lost-other-location">
+                    Describe the location <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    className={fieldInputClass}
+                    id="lost-other-location"
+                    maxLength={200}
+                    onChange={(event) => update("otherLocation", event.target.value)}
+                    placeholder="e.g. Bench outside the bookstore"
+                    value={form.otherLocation}
+                  />
+                  {errors.otherLocation && (
+                    <p className={fieldErrorClass}>{errors.otherLocation}</p>
+                  )}
+                </div>
+              )}
+
+              <div className="sm:col-span-2">
+                <label className={fieldLabelClass} htmlFor="lost-description">
+                  Identifying details
+                </label>
+                <textarea
+                  className={`${fieldInputClass} min-h-28 resize-y`}
+                  id="lost-description"
+                  onChange={(event) => update("description", event.target.value)}
+                  placeholder="Brand, stickers, scratches, what was inside… Leave out anything private like ID numbers."
+                  value={form.description}
+                />
+              </div>
+            </div>
+
+            {serverError && (
+              <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 font-['Figtree:Medium'] text-sm font-medium text-red-700">
+                {serverError}
+              </p>
+            )}
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                className="cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#00523a] disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={submitting}
+                type="submit"
+              >
+                {submitting ? "Submitting…" : "Submit lost item report"}
+              </button>
+              <button
+                className="cursor-pointer rounded-xl border border-[#cbd8d2] bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#334155] transition-colors hover:bg-emerald-50"
+                onClick={onDone}
+                type="button"
+              >
+                Cancel
+              </button>
+              <p className="font-['Figtree:Medium'] text-xs font-medium text-[#7c8b85] sm:ml-auto">
+                <span className="text-red-600">*</span> Required
+              </p>
+            </div>
+          </form>
+
+          <aside className="h-fit rounded-3xl border border-emerald-100 bg-emerald-50 p-6">
+            <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+              {content.panelLabel}
+            </p>
+            <p className="mt-2 font-['Outfit:Bold'] text-xl font-bold text-[#17212b]">
+              {content.panelTitle}
+            </p>
+            <ol className="mt-5 space-y-4">
+              {content.highlights.map((highlight, index) => (
+                <li className="flex gap-3" key={highlight.title}>
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white font-['Outfit:Bold'] text-xs font-bold text-[#006747] shadow-sm">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-['Figtree:SemiBold'] text-sm font-semibold text-[#17212b]">
+                      {highlight.title}
+                    </p>
+                    <p className="mt-0.5 font-['Figtree:Medium'] text-xs leading-5 font-medium text-[#64748b]">
+                      {highlight.description}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </aside>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SectionScreen({ content }: { content: PageContent }) {
   const [chatOpen, setChatOpen] = useState(false)
   const openChat = () => {
@@ -1438,6 +1893,8 @@ export default function App() {
         <main className="flex min-w-0 flex-1 items-start justify-center p-5 sm:p-8 lg:p-10">
           {activeItem === "home" ? (
             <HomeScreen onSelect={setActiveItem} />
+          ) : activeItem === "report-lost" ? (
+            <ReportLostItemScreen onDone={() => setActiveItem("home")} />
           ) : activeItem === "recently-resolved" ? (
             <ResolvedReportsScreen />
           ) : activeItem === "settings" ? (
