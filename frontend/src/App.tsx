@@ -1272,8 +1272,9 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
 }
 
 // ---------------------------------------------------------------------------
-// Report Lost Item
-// Saves a new item with status "lost" to the Django backend (POST /api/items/).
+// Report Lost Item / Report Found Item
+// Both forms share one component (ItemReportScreen). Each saves a new item to
+// the Django backend (POST /api/items/) with status "lost" or "found".
 // Change the backend address with VITE_API_URL in frontend/.env if needed.
 // ---------------------------------------------------------------------------
 
@@ -1308,7 +1309,17 @@ const campusLocations = [
   "Other",
 ]
 
-type LostReportForm = {
+// Staffed places where a finder can hand in an item (found reports only).
+const dropOffLocations = [
+  "University Police",
+  "Campus Center Information Desk",
+  "Greenley Library Front Desk",
+  "Nold Athletic Complex Front Desk",
+]
+
+type ReportKind = "lost" | "found"
+
+type ItemReportForm = {
   title: string
   category: string
   color: string
@@ -1316,6 +1327,7 @@ type LostReportForm = {
   otherLocation: string
   date: string
   description: string
+  dropOff: string
 }
 
 type SavedItem = {
@@ -1328,7 +1340,7 @@ type SavedItem = {
   description: string
 }
 
-const emptyLostReport: LostReportForm = {
+const emptyItemReport: ItemReportForm = {
   title: "",
   category: "",
   color: "",
@@ -1336,6 +1348,59 @@ const emptyLostReport: LostReportForm = {
   otherLocation: "",
   date: "",
   description: "",
+  dropOff: "",
+}
+
+// Wording that differs between the lost and found forms.
+const reportCopy: Record<
+  ReportKind,
+  {
+    pageId: string
+    formTitle: string
+    titlePlaceholder: string
+    locationLabel: string
+    locationError: string
+    dateLabel: string
+    dateError: string
+    descriptionLabel: string
+    descriptionPlaceholder: string
+    submitLabel: string
+    successTitle: (title: string) => string
+    successText: string
+  }
+> = {
+  lost: {
+    pageId: "report-lost",
+    formTitle: "What did you lose?",
+    titlePlaceholder: "e.g. Black JanSport backpack",
+    locationLabel: "Last seen at",
+    locationError: "Choose where you last had it.",
+    dateLabel: "Date lost",
+    dateError: "Choose the date you lost it.",
+    descriptionLabel: "Identifying details",
+    descriptionPlaceholder:
+      "Brand, stickers, scratches, what was inside… Leave out anything private like ID numbers.",
+    submitLabel: "Submit lost item report",
+    successTitle: (title) => `Your report for “${title}” is live`,
+    successText:
+      "Your report is saved. We'll notify you when a similar found item is reported.",
+  },
+  found: {
+    pageId: "report-found",
+    formTitle: "What did you find?",
+    titlePlaceholder: "e.g. Silver iPhone with a blue case",
+    locationLabel: "Where did you find it?",
+    locationError: "Choose where you found it.",
+    dateLabel: "Date found",
+    dateError: "Choose the date you found it.",
+    descriptionLabel: "General description",
+    descriptionPlaceholder:
+      "Describe it just enough to recognize it. Leave out names, serial numbers, and what's inside so the real owner can prove it's theirs.",
+    submitLabel: "Submit found item report",
+    successTitle: (title) => `Thanks for reporting “${title}”`,
+    successText:
+      "Your report is saved. Please hand the item in at the drop-off point below so staff can return it to its owner.",
+  },
 }
 
 function todayIso() {
@@ -1361,27 +1426,39 @@ const fieldInputClass =
 const fieldErrorClass =
   "mt-1 font-['Figtree:Medium'] text-xs font-medium text-red-600"
 
-function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
-  const [form, setForm] = useState<LostReportForm>(emptyLostReport)
-  const [errors, setErrors] = useState<Partial<Record<keyof LostReportForm, string>>>({})
+function ItemReportScreen({
+  kind,
+  onDone,
+}: {
+  kind: ReportKind
+  onDone: () => void
+}) {
+  const [form, setForm] = useState<ItemReportForm>(emptyItemReport)
+  const [errors, setErrors] = useState<Partial<Record<keyof ItemReportForm, string>>>({})
   const [submitting, setSubmitting] = useState(false)
   const [serverError, setServerError] = useState("")
   const [savedItem, setSavedItem] = useState<SavedItem | null>(null)
+  const [savedDropOff, setSavedDropOff] = useState("")
 
-  const update = (field: keyof LostReportForm, value: string) => {
+  const copy = reportCopy[kind]
+  const content = pageContent[copy.pageId]
+  const isFound = kind === "found"
+
+  const update = (field: keyof ItemReportForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }))
     setErrors((current) => ({ ...current, [field]: undefined }))
   }
 
   const validate = () => {
-    const next: Partial<Record<keyof LostReportForm, string>> = {}
+    const next: Partial<Record<keyof ItemReportForm, string>> = {}
     if (!form.title.trim()) next.title = "Tell us what the item is."
     if (!form.category) next.category = "Choose a category."
-    if (!form.location) next.location = "Choose where you last had it."
+    if (!form.location) next.location = copy.locationError
     if (form.location === "Other" && !form.otherLocation.trim())
       next.otherLocation = "Describe the location."
-    if (!form.date) next.date = "Choose the date you lost it."
+    if (!form.date) next.date = copy.dateError
     else if (form.date > todayIso()) next.date = "The date can't be in the future."
+    if (isFound && !form.dropOff) next.dropOff = "Choose where you'll hand it in."
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -1390,7 +1467,7 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
     setServerError("")
     if (!validate()) return
 
-    const payload = {
+    const payload: Record<string, string> = {
       title: form.title.trim(),
       category: form.category,
       color: form.color.trim(),
@@ -1398,8 +1475,12 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
         form.location === "Other" ? form.otherLocation.trim() : form.location,
       date: form.date,
       description: form.description.trim(),
-      status: "lost",
+      status: kind,
     }
+    // storage_location is added to the Item model on the
+    // InventoryFeature-Addition branch. Until that is merged the backend
+    // ignores this field.
+    if (isFound) payload.storage_location = form.dropOff
 
     setSubmitting(true)
     try {
@@ -1424,6 +1505,7 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
         return
       }
       setSavedItem((await response.json()) as SavedItem)
+      setSavedDropOff(form.dropOff)
     } catch {
       setServerError(
         "Couldn't reach the server. Make sure the backend is running (python manage.py runserver) and try again.",
@@ -1434,13 +1516,24 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
   }
 
   const startOver = () => {
-    setForm(emptyLostReport)
+    setForm(emptyItemReport)
     setErrors({})
     setServerError("")
     setSavedItem(null)
+    setSavedDropOff("")
   }
 
-  const content = pageContent["report-lost"]
+  const summaryRows: [string, string][] = savedItem
+    ? [
+        ["Item", savedItem.title],
+        ["Category", savedItem.category],
+        ["Color", savedItem.color || "—"],
+        [isFound ? "Found at" : "Last seen", savedItem.location],
+        [copy.dateLabel, formatReportDate(savedItem.date)],
+        ...(isFound ? ([["Drop off at", savedDropOff]] as [string, string][]) : []),
+        ["Report ID", savedItem.id],
+      ]
+    : []
 
   return (
     <div className="w-full max-w-6xl space-y-6">
@@ -1470,31 +1563,23 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
         <section className="rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8">
           <div className="flex items-start gap-4">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#006747]">
-              <img alt="" className="size-6" src={imgMapPinCheck} />
+              <img alt="" className="size-6 brightness-0 invert" src={content.icon} />
             </span>
             <div>
               <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
                 Report submitted
               </p>
               <p className="mt-1 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
-                Your report for &ldquo;{savedItem.title}&rdquo; is live
+                {copy.successTitle(savedItem.title)}
               </p>
               <p className="mt-2 max-w-2xl font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#64748b]">
-                Your report is saved. We&apos;ll notify you when a similar found
-                item is reported.
+                {copy.successText}
               </p>
             </div>
           </div>
 
           <dl className="mt-6 grid gap-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 sm:grid-cols-2">
-            {[
-              ["Item", savedItem.title],
-              ["Category", savedItem.category],
-              ["Color", savedItem.color || "—"],
-              ["Last seen", savedItem.location],
-              ["Date lost", formatReportDate(savedItem.date)],
-              ["Report ID", savedItem.id],
-            ].map(([label, value]) => (
+            {summaryRows.map(([label, value]) => (
               <div key={label}>
                 <dt className="font-['Figtree:Medium'] text-xs font-medium text-[#64748b]">
                   {label}
@@ -1547,32 +1632,32 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
               Item details
             </p>
             <p className="mt-2 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
-              What did you lose?
+              {copy.formTitle}
             </p>
 
             <div className="mt-6 grid gap-5 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <label className={fieldLabelClass} htmlFor="lost-title">
+                <label className={fieldLabelClass} htmlFor={`${kind}-title`}>
                   Item name <span className="text-red-600">*</span>
                 </label>
                 <input
                   className={fieldInputClass}
-                  id="lost-title"
+                  id={`${kind}-title`}
                   maxLength={200}
                   onChange={(event) => update("title", event.target.value)}
-                  placeholder="e.g. Black JanSport backpack"
+                  placeholder={copy.titlePlaceholder}
                   value={form.title}
                 />
                 {errors.title && <p className={fieldErrorClass}>{errors.title}</p>}
               </div>
 
               <div>
-                <label className={fieldLabelClass} htmlFor="lost-category">
+                <label className={fieldLabelClass} htmlFor={`${kind}-category`}>
                   Category <span className="text-red-600">*</span>
                 </label>
                 <select
                   className={fieldInputClass}
-                  id="lost-category"
+                  id={`${kind}-category`}
                   onChange={(event) => update("category", event.target.value)}
                   value={form.category}
                 >
@@ -1587,12 +1672,12 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
               </div>
 
               <div>
-                <label className={fieldLabelClass} htmlFor="lost-color">
+                <label className={fieldLabelClass} htmlFor={`${kind}-color`}>
                   Color
                 </label>
                 <input
                   className={fieldInputClass}
-                  id="lost-color"
+                  id={`${kind}-color`}
                   maxLength={50}
                   onChange={(event) => update("color", event.target.value)}
                   placeholder="e.g. Black"
@@ -1601,12 +1686,12 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
               </div>
 
               <div>
-                <label className={fieldLabelClass} htmlFor="lost-location">
-                  Last seen at <span className="text-red-600">*</span>
+                <label className={fieldLabelClass} htmlFor={`${kind}-location`}>
+                  {copy.locationLabel} <span className="text-red-600">*</span>
                 </label>
                 <select
                   className={fieldInputClass}
-                  id="lost-location"
+                  id={`${kind}-location`}
                   onChange={(event) => update("location", event.target.value)}
                   value={form.location}
                 >
@@ -1621,12 +1706,12 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
               </div>
 
               <div>
-                <label className={fieldLabelClass} htmlFor="lost-date">
-                  Date lost <span className="text-red-600">*</span>
+                <label className={fieldLabelClass} htmlFor={`${kind}-date`}>
+                  {copy.dateLabel} <span className="text-red-600">*</span>
                 </label>
                 <input
                   className={fieldInputClass}
-                  id="lost-date"
+                  id={`${kind}-date`}
                   max={todayIso()}
                   onChange={(event) => update("date", event.target.value)}
                   type="date"
@@ -1637,12 +1722,12 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
 
               {form.location === "Other" && (
                 <div className="sm:col-span-2">
-                  <label className={fieldLabelClass} htmlFor="lost-other-location">
+                  <label className={fieldLabelClass} htmlFor={`${kind}-other-location`}>
                     Describe the location <span className="text-red-600">*</span>
                   </label>
                   <input
                     className={fieldInputClass}
-                    id="lost-other-location"
+                    id={`${kind}-other-location`}
                     maxLength={200}
                     onChange={(event) => update("otherLocation", event.target.value)}
                     placeholder="e.g. Bench outside the bookstore"
@@ -1654,15 +1739,42 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
                 </div>
               )}
 
+              {isFound && (
+                <div className="sm:col-span-2">
+                  <label className={fieldLabelClass} htmlFor="found-dropoff">
+                    Where will you hand it in? <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    className={fieldInputClass}
+                    id="found-dropoff"
+                    onChange={(event) => update("dropOff", event.target.value)}
+                    value={form.dropOff}
+                  >
+                    <option value="">Select a staffed drop-off point</option>
+                    {dropOffLocations.map((location) => (
+                      <option key={location}>{location}</option>
+                    ))}
+                  </select>
+                  {errors.dropOff ? (
+                    <p className={fieldErrorClass}>{errors.dropOff}</p>
+                  ) : (
+                    <p className="mt-1 font-['Figtree:Medium'] text-xs font-medium text-[#64748b]">
+                      Please don&apos;t arrange a handoff off campus. Staff will
+                      verify the owner before returning it.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="sm:col-span-2">
-                <label className={fieldLabelClass} htmlFor="lost-description">
-                  Identifying details
+                <label className={fieldLabelClass} htmlFor={`${kind}-description`}>
+                  {copy.descriptionLabel}
                 </label>
                 <textarea
                   className={`${fieldInputClass} min-h-28 resize-y`}
-                  id="lost-description"
+                  id={`${kind}-description`}
                   onChange={(event) => update("description", event.target.value)}
-                  placeholder="Brand, stickers, scratches, what was inside… Leave out anything private like ID numbers."
+                  placeholder={copy.descriptionPlaceholder}
                   value={form.description}
                 />
               </div>
@@ -1680,7 +1792,7 @@ function ReportLostItemScreen({ onDone }: { onDone: () => void }) {
                 disabled={submitting}
                 type="submit"
               >
-                {submitting ? "Submitting…" : "Submit lost item report"}
+                {submitting ? "Submitting…" : copy.submitLabel}
               </button>
               <button
                 className="cursor-pointer rounded-xl border border-[#cbd8d2] bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#334155] transition-colors hover:bg-emerald-50"
@@ -1893,8 +2005,12 @@ export default function App() {
         <main className="flex min-w-0 flex-1 items-start justify-center p-5 sm:p-8 lg:p-10">
           {activeItem === "home" ? (
             <HomeScreen onSelect={setActiveItem} />
-          ) : activeItem === "report-lost" ? (
-            <ReportLostItemScreen onDone={() => setActiveItem("home")} />
+          ) : activeItem === "report-lost" || activeItem === "report-found" ? (
+            <ItemReportScreen
+              key={activeItem}
+              kind={activeItem === "report-lost" ? "lost" : "found"}
+              onDone={() => setActiveItem("home")}
+            />
           ) : activeItem === "recently-resolved" ? (
             <ResolvedReportsScreen />
           ) : activeItem === "settings" ? (
