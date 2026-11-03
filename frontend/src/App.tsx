@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import InventoryScreen from "./Inventory"
 
 const assetPathPrefix = "/assets"
 const imgHomeIcon = `${assetPathPrefix}/6c43b.svg`
@@ -28,6 +29,11 @@ type Section = {
 }
 
 const sections: Section[] = [
+  {
+    id: "inventory",
+    title: "INVENTORY",
+    items: [{ id: "inventory", label: "Inventory", icon: imgPackageCheck }],
+  },
   {
     id: "reports",
     title: "REPORTS",
@@ -1961,8 +1967,12 @@ function SectionScreen({ content }: { content: PageContent }) {
 }
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [activeItem, setActiveItem] = useState("home")
+  const returningFromAdmin =
+    new URLSearchParams(window.location.search).get("admin_inventory") === "1"
+  const [isLoggedIn, setIsLoggedIn] = useState(returningFromAdmin)
+  const [activeItem, setActiveItem] = useState(
+    returningFromAdmin ? "inventory" : "home",
+  )
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("fsc-dark-mode") === "true",
   )
@@ -1974,6 +1984,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("fsc-dark-mode", String(darkMode))
   }, [darkMode])
+
+  useEffect(() => {
+    if (!returningFromAdmin) return
+
+    const url = new URL(window.location.href)
+    url.searchParams.delete("admin_inventory")
+    window.history.replaceState({}, "", url)
+  }, [returningFromAdmin])
 
   useEffect(() => {
     const sizes: Record<FontSize, string> = {
@@ -2011,6 +2029,8 @@ export default function App() {
               kind={activeItem === "report-lost" ? "lost" : "found"}
               onDone={() => setActiveItem("home")}
             />
+          ) : activeItem === "inventory" ? (
+            <InventoryScreen />
           ) : activeItem === "recently-resolved" ? (
             <ResolvedReportsScreen />
           ) : activeItem === "settings" ? (

@@ -17,12 +17,15 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from items.views import ItemViewSet
+from config.views import inventory_return
+from items.views import InventoryViewSet, ItemViewSet
 
 router = DefaultRouter()
 router.register("items", ItemViewSet)
+router.register("inventory", InventoryViewSet, basename="inventory")
 
 urlpatterns = [
+    path("inventory-return/", inventory_return, name="inventory-return"),
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
 ]
