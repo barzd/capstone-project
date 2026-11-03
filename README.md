@@ -6,9 +6,7 @@
 
 ## Prototype
 
-**Figma (public link):** [Campus Lost and Found Prototype](https://www.figma.com/make/FD7JF8uE3g1WDm93VYjuob/Campus-Lost-and-Found-Prototype?t=exsNpSs5asI0SRqj-1)
-
-The prototype was designed in Figma using a user-centered approach. Every persona, diagram, screen, and flow below supports the Product Goal: getting lost items back to their owners quickly.
+The prototype was designed using a user-centered approach. Every persona, diagram, screen, and flow below supports the Product Goal: getting lost items back to their owners quickly.
 
 ### 1. Personas
 
@@ -55,7 +53,7 @@ flowchart LR
 
 ### 3. UI — Key Screens
 
-The following key screens were designed in Figma (see link above):
+The following key screens are represented in the prototype:
 
 | Screen | Purpose |
 |---|---|
@@ -119,7 +117,7 @@ flowchart TB
 ```
 
 **Layers**
-1. **Presentation layer (client):** The user interface built from the Figma designs. It handles screens, forms, and displaying results. It never talks to the database directly; it only calls the API.
+1. **Presentation layer (client):** The user interface handles screens, forms, and displaying results. It never talks to the database directly; it only calls the API.
 2. **Application layer (server):** A REST API that holds the business logic:
    - *Auth module* – login with campus credentials, session/token handling
    - *Item service* – create, search, and update lost and found posts
@@ -167,7 +165,7 @@ Tests complete user journeys through the real UI, following the UX flow above.
 | S3 | Owner reports a lost item, then a matching found item is posted | Owner receives match alert |
 
 ### 4. Usability Testing
-Checks that real users can complete key tasks using the Figma prototype and later the working app.
+Checks that real users can complete key tasks using the prototype and the working app.
 - **Method:** 3–5 students complete tasks while thinking aloud
 - **Tasks:** Find a lost item, report a lost item, claim an item
 - **Success criteria:** Each task completed in under 2 minutes without help; feedback is used to revise the UI
