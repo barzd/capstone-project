@@ -593,15 +593,45 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
-  const [registrationMessage, setRegistrationMessage] = useState(false)
-
-  const submitLogin = () => {
+    const [registrationMessage, setRegistrationMessage] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const callAccounts = async (path: "login" | "register") => {
     if (!username.trim() || !password.trim()) {
       setError("Enter your username and password to continue.")
-      return
+      setRegistrationMessage("")
+      return false
     }
     setError("")
-    onLogin()
+    setRegistrationMessage("")
+    setSubmitting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/${path}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim(), password }),
+      })
+      const body = await response.json().catch(() => null)
+      if (!response.ok) {
+        setError(body?.error ?? `Something went wrong (error ${response.status}).`)
+        return false
+      }
+      return true
+    } catch {
+      setError("Couldn't reach the server. Make sure the backend is running and try again.")
+      return false
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const submitLogin = async () => {
+    if (await callAccounts("login")) onLogin()
+  }
+
+  const submitRegister = async () => {
+    if (await callAccounts("register")) {
+      setRegistrationMessage("Account created! You can now log in.")
+    }
   }
 
   return (
@@ -670,7 +700,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
         {registrationMessage && (
           <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 font-['Figtree:Medium'] text-xs font-medium text-emerald-700">
-            Registration will be connected when the account backend is ready.
+                        {registrationMessage}
           </p>
         )}
 
@@ -682,9 +712,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         </button>
         <button
           className="mt-2 w-full cursor-pointer rounded border-2 border-[#006747] bg-white px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] transition-colors hover:bg-emerald-50"
-          onClick={() => {
-            setRegistrationMessage(true)
-            setError("")
+                    onClick={() => {
+            void submitRegister()
           }}
           type="button"
         >
