@@ -1467,7 +1467,7 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
 // Change the backend address with VITE_API_URL in frontend/.env if needed.
 // ---------------------------------------------------------------------------
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? ""
 
 const itemCategories = [
   "Electronics",
@@ -2151,6 +2151,7 @@ function SectionScreen({ content }: { content: PageContent }) {
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
   const [activeItem, setActiveItem] = useState("home")
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("fsc-dark-mode") === "true",
@@ -2174,6 +2175,34 @@ export default function App() {
     localStorage.setItem("fsc-font-size", fontSize)
   }, [fontSize])
 
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_BASE_URL}/api/me/`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (!cancelled && body?.authenticated) setIsLoggedIn(true)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCheckingSession(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/api/logout/`, { method: "POST" })
+    } catch {
+      // The screen still resets even if the server can't be reached.
+    }
+    setIsLoggedIn(false)
+    setActiveItem("home")
+  }
+
+  if (checkingSession) return null
+
   if (!isLoggedIn) {
     return <LoginScreen onLogin={() => setIsLoggedIn(true)} />
   }
@@ -2188,7 +2217,7 @@ export default function App() {
       <div className="flex flex-1 flex-col md:flex-row">
         <Sidebar
           activeItem={activeItem}
-          onLogout={() => setIsLoggedIn(false)}
+          onLogout={() => void handleLogout()}
           onSelect={setActiveItem}
         />
         <main className="flex min-w-0 flex-1 items-start justify-center p-5 sm:p-8 lg:p-10">
