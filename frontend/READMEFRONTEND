@@ -1,0 +1,4 @@
+HOW TO RUN THE FRONT END
+- cd frontend
+- npm install
+- npm run dev -- --host 127.0.0.1
