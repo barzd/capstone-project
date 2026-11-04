@@ -590,47 +590,139 @@ function Sidebar({
 }
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  type Mode = "login" | "register" | "forgot" | "reset"
+  const resetParams = new URLSearchParams(window.location.search)
+  const resetUid = resetParams.get("uid") ?? ""
+  const resetToken = resetParams.get("token") ?? ""
+
+  const [mode, setMode] = useState<Mode>(
+    resetUid && resetToken ? "reset" : "login",
+  )
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
-    const [registrationMessage, setRegistrationMessage] = useState("")
+  const [notice, setNotice] = useState("")
   const [submitting, setSubmitting] = useState(false)
-  const callAccounts = async (path: "login" | "register") => {
-    if (!username.trim() || !password.trim()) {
-      setError("Enter your username and password to continue.")
-      setRegistrationMessage("")
-      return false
+
+  const inputClass =
+    "mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
+  const labelClass =
+    "block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
+
+  const subtitles: Record<Mode, string> = {
+    login: "Sign in to view and manage campus reports",
+    register: "Create your account",
+    forgot: "Enter your email and we'll send you a reset link",
+    reset: "Choose a new password",
+  }
+  const primaryLabels: Record<Mode, string> = {
+    login: "Log In",
+    register: "Create account",
+    forgot: "Send reset link",
+    reset: "Set new password",
+  }
+
+  const switchMode = (next: Mode) => {
+    if (mode === "reset") {
+      window.history.replaceState({}, "", window.location.pathname)
     }
+    setMode(next)
     setError("")
-    setRegistrationMessage("")
+    setNotice("")
+    setPassword("")
+  }
+
+  const submit = async () => {
+    setError("")
+    setNotice("")
+
+    let path = ""
+    let payload: Record<string, string> = {}
+
+    if (mode === "login") {
+      if (!username.trim() || !password.trim()) {
+        setError("Enter your username and password to continue.")
+        return
+      }
+      path = "login"
+      payload = { username: username.trim(), password }
+    } else if (mode === "register") {
+      if (!username.trim() || !password.trim()) {
+        setError("Enter your username and password to continue.")
+        return
+      }
+      if (!firstName.trim() || !lastName.trim()) {
+        setError("Enter your first and last name to create an account.")
+        return
+      }
+      if (!email.trim()) {
+        setError("Enter your email to create an account.")
+        return
+      }
+      path = "register"
+      payload = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        username: username.trim(),
+        email: email.trim(),
+        password,
+      }
+    } else if (mode === "forgot") {
+      if (!email.trim()) {
+        setError("Enter the email for your account.")
+        return
+      }
+      path = "forgot-password"
+      payload = { email: email.trim() }
+    } else {
+      if (!password.trim()) {
+        setError("Enter a new password.")
+        return
+      }
+      path = "reset-password"
+      payload = { uid: resetUid, token: resetToken, password }
+    }
+
     setSubmitting(true)
     try {
       const response = await fetch(`${API_BASE_URL}/api/${path}/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password }),
+        body: JSON.stringify(payload),
       })
       const body = await response.json().catch(() => null)
       if (!response.ok) {
         setError(body?.error ?? `Something went wrong (error ${response.status}).`)
-        return false
+        return
       }
-      return true
+
+      if (mode === "login") {
+        onLogin()
+      } else if (mode === "register") {
+        setMode("login")
+        setEmail("")
+        setFirstName("")
+        setLastName("")
+        setPassword("")
+        setNotice("Account created! You can now log in.")
+      } else if (mode === "forgot") {
+        setNotice(
+          body?.message ?? "If that email is registered, a reset link has been sent.",
+        )
+        setEmail("")
+      } else {
+        window.history.replaceState({}, "", window.location.pathname)
+        setMode("login")
+        setPassword("")
+        setNotice("Password updated. You can now log in.")
+      }
     } catch {
       setError("Couldn't reach the server. Make sure the backend is running and try again.")
-      return false
     } finally {
       setSubmitting(false)
-    }
-  }
-
-  const submitLogin = async () => {
-    if (await callAccounts("login")) onLogin()
-  }
-
-  const submitRegister = async () => {
-    if (await callAccounts("register")) {
-      setRegistrationMessage("Account created! You can now log in.")
     }
   }
 
@@ -644,7 +736,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         className="relative z-10 w-full max-w-[420px] rounded-md border border-black/15 bg-white p-7 shadow-2xl sm:p-9"
         onSubmit={(event) => {
           event.preventDefault()
-          submitLogin()
+          void submit()
         }}
       >
         <div className="text-center">
@@ -652,44 +744,112 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             FSC Lost &amp; Found
           </p>
           <p className="mt-2 font-['Figtree:Medium'] text-sm font-medium text-[#64748b]">
-            Sign in to view and manage campus reports
+            {subtitles[mode]}
           </p>
         </div>
 
-        <div className="mt-7">
-          <label
-            className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
-            htmlFor="username"
-          >
-            Username or Email
-          </label>
-          <input
-            autoComplete="username"
-            className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
-            id="username"
-            onChange={(event) => setUsername(event.target.value)}
-            placeholder="Enter your username or email"
-            type="text"
-            value={username}
-          />
-        </div>
+        <div className="mt-7 space-y-4">
+          {mode === "register" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass} htmlFor="first-name">
+                  First name
+                </label>
+                <input
+                  autoComplete="given-name"
+                  className={inputClass}
+                  id="first-name"
+                  onChange={(event) => setFirstName(event.target.value)}
+                  placeholder="First name"
+                  type="text"
+                  value={firstName}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="last-name">
+                  Last name
+                </label>
+                <input
+                  autoComplete="family-name"
+                  className={inputClass}
+                  id="last-name"
+                  onChange={(event) => setLastName(event.target.value)}
+                  placeholder="Last name"
+                  type="text"
+                  value={lastName}
+                />
+              </div>
+            </div>
+          )}
 
-        <div className="mt-4">
-          <label
-            className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
-            htmlFor="password"
-          >
-            Password
-          </label>
-          <input
-            autoComplete="current-password"
-            className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
-            id="password"
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Enter your password"
-            type="password"
-            value={password}
-          />
+          {(mode === "login" || mode === "register") && (
+            <div>
+              <label className={labelClass} htmlFor="username">
+                {mode === "register" ? "Username" : "Username or Email"}
+              </label>
+              <input
+                autoComplete="username"
+                className={inputClass}
+                id="username"
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder={
+                  mode === "register"
+                    ? "Choose a username"
+                    : "Enter your username or email"
+                }
+                type="text"
+                value={username}
+              />
+            </div>
+          )}
+
+          {(mode === "register" || mode === "forgot") && (
+            <div>
+              <label className={labelClass} htmlFor="email">
+                Email
+              </label>
+              <input
+                autoComplete="email"
+                className={inputClass}
+                id="email"
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                type="email"
+                value={email}
+              />
+            </div>
+          )}
+
+          {mode !== "forgot" && (
+            <div>
+              <label className={labelClass} htmlFor="password">
+                {mode === "reset" ? "New password" : "Password"}
+              </label>
+              <input
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                className={inputClass}
+                id="password"
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder={
+                  mode === "login" ? "Enter your password" : "Choose a password"
+                }
+                type="password"
+                value={password}
+              />
+            </div>
+          )}
+
+          {mode === "login" && (
+            <div className="text-right">
+              <button
+                className="cursor-pointer font-['Figtree:SemiBold'] text-xs font-semibold text-[#006747] hover:underline"
+                onClick={() => switchMode("forgot")}
+                type="button"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -698,26 +858,26 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           </p>
         )}
 
-        {registrationMessage && (
+        {notice && (
           <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 font-['Figtree:Medium'] text-xs font-medium text-emerald-700">
-                        {registrationMessage}
+            {notice}
           </p>
         )}
 
         <button
-          className="mt-6 w-full cursor-pointer rounded bg-[#006747] px-4 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#005548]"
+          className="mt-6 w-full cursor-pointer rounded bg-[#006747] px-4 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#005548] disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={submitting}
           type="submit"
         >
-          Log In
+          {primaryLabels[mode]}
         </button>
         <button
-          className="mt-2 w-full cursor-pointer rounded border-2 border-[#006747] bg-white px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] transition-colors hover:bg-emerald-50"
-                    onClick={() => {
-            void submitRegister()
-          }}
+          className="mt-2 w-full cursor-pointer rounded border-2 border-[#006747] bg-white px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={submitting}
+          onClick={() => switchMode(mode === "login" ? "register" : "login")}
           type="button"
         >
-          Register
+          {mode === "login" ? "Register" : "Back to log in"}
         </button>
       </form>
     </main>
