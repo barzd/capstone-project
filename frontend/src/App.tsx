@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import InventoryScreen from "./Inventory"
+import FoundItemReport from "./FoundItemReport"
 
 const assetPathPrefix = "/assets"
 const imgHomeIcon = `${assetPathPrefix}/6c43b.svg`
@@ -1458,6 +1459,8 @@ export default function App() {
             <HomeScreen onSelect={setActiveItem} />
           ) : activeItem === "inventory" ? (
             <InventoryScreen />
+          ) : activeItem === "report-found" ? (
+            <FoundItemReport onOpenInventory={() => setActiveItem("inventory")} />
           ) : activeItem === "recently-resolved" ? (
             <ResolvedReportsScreen />
           ) : activeItem === "settings" ? (

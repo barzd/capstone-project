@@ -104,7 +104,12 @@ found, date found, and storage location.
 
 ## 5. Add a test found item
 
-In the same browser where you signed in to Django admin, open the Items API:
+In the app, select **Report Found Item**, enter the test item's details, and
+select **Record Found Item**. A successful response displays the generated item
+ID; the item is automatically marked available and appears in Inventory.
+
+You can also create a test item through the Items API. In the same browser
+where you signed in to Django admin, open:
 
 <http://127.0.0.1:8000/api/items/>
 
@@ -123,8 +128,8 @@ Use the browsable API's **POST** form to create a test item, for example:
 }
 ```
 
-Set `"status": "found"` for the item to appear in Inventory. Return to the app
-and refresh the Inventory view.
+Set `"status": "found"` for the item to appear in Inventory. The API generates
+an ID when it saves the item. Return to the app and refresh the Inventory view.
 
 ## 6. View the inventory API
 

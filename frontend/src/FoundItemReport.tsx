@@ -1,0 +1,222 @@
+import { useState, type FormEvent } from "react"
+
+const itemsApiUrl = `http://${window.location.hostname}:8000/api/items/`
+
+function localDateValue(): string {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function getErrorMessage(payload: unknown, status: number): string {
+  if (typeof payload === "object" && payload !== null && "detail" in payload) {
+    const detail = payload.detail
+    if (typeof detail === "string") return detail
+  }
+  return `Could not submit the found item (HTTP ${status}).`
+}
+
+function FoundItemReport({
+  onOpenInventory,
+}: {
+  onOpenInventory: () => void
+}) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [submittedItemId, setSubmittedItemId] = useState<string | null>(null)
+
+  async function submitReport(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    setIsSubmitting(true)
+    setError(null)
+    setSubmittedItemId(null)
+
+    const formData = new FormData(event.currentTarget)
+    const item = {
+      title: String(formData.get("title") ?? "").trim(),
+      description: String(formData.get("description") ?? "").trim(),
+      category: String(formData.get("category") ?? "").trim(),
+      color: String(formData.get("color") ?? "").trim(),
+      location: String(formData.get("location") ?? "").trim(),
+      status: "found",
+      date: String(formData.get("date") ?? ""),
+      storage_location: String(formData.get("storage_location") ?? "").trim(),
+    }
+
+    try {
+      const response = await fetch(itemsApiUrl, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(item),
+      })
+      const payload: unknown = await response.json()
+
+      if (!response.ok) {
+        throw new Error(getErrorMessage(payload, response.status))
+      }
+
+      if (
+        typeof payload !== "object" ||
+        payload === null ||
+        !("id" in payload) ||
+        (typeof payload.id !== "string" && typeof payload.id !== "number")
+      ) {
+        throw new Error(
+          "The item was saved, but the API did not return its generated ID.",
+        )
+      }
+
+      setSubmittedItemId(String(payload.id))
+      form.reset()
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "An unexpected error occurred while submitting the found item.",
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="w-full max-w-4xl space-y-6">
+      <section className="rounded-3xl bg-gradient-to-br from-[#004f3a] via-[#006747] to-[#00a676] p-7 text-white shadow-xl shadow-emerald-950/10 sm:p-9">
+        <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.16em] text-emerald-100 uppercase">
+          Found item report
+        </p>
+        <h1 className="mt-2 font-['Outfit:Bold'] text-3xl leading-tight font-bold sm:text-4xl">
+          Report a Found Item
+        </h1>
+        <p className="mt-3 max-w-2xl font-['Figtree:Medium'] text-sm leading-6 font-medium text-white/85 sm:text-base">
+          Add the item details below. Submitting this report records it in the
+          campus inventory.
+        </p>
+      </section>
+
+      {submittedItemId && (
+        <section
+          className="found-item-success rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950"
+          role="status"
+        >
+          <p className="font-['Figtree:SemiBold'] text-base font-semibold">
+            Found item recorded in inventory.
+          </p>
+          <p className="mt-1 text-sm">
+            Generated item ID:{" "}
+            <code className="found-item-id rounded bg-white px-2 py-1 font-mono">
+              {submittedItemId}
+            </code>
+          </p>
+          <button
+            className="mt-4 rounded-xl bg-[#006747] px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-white hover:bg-[#00523a]"
+            onClick={onOpenInventory}
+            type="button"
+          >
+            View inventory
+          </button>
+        </section>
+      )}
+
+      <form
+        className="space-y-5 rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8"
+        onSubmit={submitReport}
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
+            Item name
+            <input
+              autoComplete="off"
+              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+              maxLength={200}
+              name="title"
+              placeholder="e.g. Water bottle"
+              required
+            />
+          </label>
+          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
+            Category
+            <input
+              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+              maxLength={100}
+              name="category"
+              placeholder="e.g. Accessories"
+              required
+            />
+          </label>
+          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
+            Color
+            <input
+              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+              maxLength={50}
+              name="color"
+              placeholder="Optional"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
+            Location found
+            <input
+              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+              maxLength={200}
+              name="location"
+              placeholder="e.g. Library entrance"
+              required
+            />
+          </label>
+          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
+            Date found
+            <input
+              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+              defaultValue={localDateValue()}
+              name="date"
+              required
+              type="date"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
+            Storage location
+            <input
+              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+              maxLength={200}
+              name="storage_location"
+              placeholder="Optional"
+            />
+          </label>
+        </div>
+        <label className="block space-y-1.5 text-sm font-semibold text-[#17212b]">
+          Description
+          <textarea
+            className="min-h-28 w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+            name="description"
+            placeholder="Add helpful identifying details"
+          />
+        </label>
+
+        {error && (
+          <p
+            className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+
+        <button
+          className="rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white transition-colors hover:bg-[#00523a] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={isSubmitting}
+          type="submit"
+        >
+          {isSubmitting ? "Recording item…" : "Record Found Item"}
+        </button>
+      </form>
+    </div>
+  )
+}
+
+export default FoundItemReport

@@ -122,3 +122,17 @@
 .theme-dark .report-found-button [class*='text-[#0f172a]'] {
   color: #fff;
 }
+
+.theme-dark .found-item-success {
+  border-color: #047857;
+  background-color: #102a24;
+  color: #d1fae5;
+}
+
+.theme-dark .found-item-id,
+.theme-dark .inventory-item-id {
+  border: 1px solid #34d399;
+  background-color: #06251d;
+  color: #a7f3d0;
+  font-weight: 600;
+}
