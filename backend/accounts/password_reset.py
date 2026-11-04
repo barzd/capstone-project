@@ -70,7 +70,7 @@ def forgot_password(request):
         link = f"{_frontend_url()}/?uid={uid}&token={token}"
         try:
             EmailMessage(
-                subject="Reset your FSC Lost & Found password",
+                subject="Your FSC Lost and Found password reset",
                 body=(
                     f"Hi {user.first_name or user.username},\n\n"
                     "Use this link to choose a new password:\n\n"

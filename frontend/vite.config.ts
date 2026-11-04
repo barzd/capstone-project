@@ -35,6 +35,9 @@ react(),
       host: 'localhost', // <-- Change this to force standard local HTTP
       port: parseInt(process.env.PORT || '5173'),
       strictPort: true,
+      proxy: {
+        "/api": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      },
       watch: {
         ignored: [
           '**/.figma/**',
