@@ -7,14 +7,14 @@ Stories are grouped into **epics** — large features that each contain several 
 ## Epic 1: User Accounts & Privacy
 Let users securely access the system and keep their personal information protected.
 
-- **User Accounts:** As a student, I want to be able to create an account, so that I can submit and manage lost item reports.
+- ~~**User Accounts:** As a student, I want to be able to create an account, so that I can submit and manage lost item reports.~~
 - **Password Recovery:** As a user, I want to reset my password if I forget it, so that I can regain access to my account.
 - **Privacy Protection:** As a student, I want my personal information to stay private, so that my contact details are not shown to everyone using the system.
 
 ## Epic 2: Item Reporting
 Let users report lost and found items with enough detail to identify them.
 
-- **Item Reporting:** As a student, I want to report a lost item, so that others can help me find it.
+- ~~**Item Reporting:** As a student, I want to report a lost item, so that others can help me find it.~~
 - **Found Item Reporting:** As a student or staff member, I want to report an item I found, so that it can be returned to its owner.
 - **Photo Uploads:** As a student, I want to upload a photo of my lost item, so that others can identify it more easily.
 - **Report Management:** As a student, I want to edit or close my lost item report, so that I can keep my information updated if I find my item.
