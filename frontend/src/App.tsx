@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import InventoryScreen from "./Inventory"
+const CampusMap = lazy(() => import("./CampusMap"))
 
 const assetPathPrefix = "/assets"
 const imgHomeIcon = `${assetPathPrefix}/6c43b.svg`
@@ -416,6 +417,16 @@ const pageContent: Record<string, PageContent> = {
     panelTitle: "Keep every exchange safe",
   },
 }
+
+const persistentPageIds = new Set([
+  "home",
+  "report-lost",
+  "report-found",
+  "inventory",
+  "settings",
+  ...sections.flatMap((section) => section.items.map((item) => item.id)),
+  ...Object.keys(pageContent),
+])
 
 function TopBar() {
   return (
@@ -2138,9 +2149,11 @@ export default function App() {
     new URLSearchParams(window.location.search).get("admin_inventory") === "1"
   const [isLoggedIn, setIsLoggedIn] = useState(returningFromAdmin)
   const [authError, setAuthError] = useState("")
-  const [activeItem, setActiveItem] = useState(
-    returningFromAdmin ? "inventory" : "home",
-  )
+  const [activeItem, setActiveItem] = useState(() => {
+    if (returningFromAdmin) return "inventory"
+    const savedPage = localStorage.getItem("fsc-active-page")
+    return savedPage && persistentPageIds.has(savedPage) ? savedPage : "home"
+  })
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("fsc-dark-mode") === "true",
   )
@@ -2194,6 +2207,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("fsc-dark-mode", String(darkMode))
   }, [darkMode])
+
+  useEffect(() => {
+    localStorage.setItem("fsc-active-page", activeItem)
+  }, [activeItem])
 
   useEffect(() => {
     if (!returningFromAdmin) return
@@ -2267,6 +2284,10 @@ export default function App() {
             />
           ) : activeItem === "inventory" ? (
             <InventoryScreen />
+          ) : activeItem === "campus-map" ? (
+            <Suspense fallback={<p className="p-8 text-sm text-[#64748b]">Loading campus map…</p>}>
+              <CampusMap />
+            </Suspense>
           ) : activeItem === "recently-resolved" ? (
             <ResolvedReportsScreen />
           ) : activeItem === "settings" ? (
