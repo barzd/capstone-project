@@ -11,9 +11,17 @@ class ItemSerializer(serializers.ModelSerializer):
 
 
 class LostItemSerializer(ItemSerializer):
-    def validate_status(self, value):
-        if value != "lost":
-            raise serializers.ValidationError(
-                "The Lost Items API only accepts reports with status 'lost'."
-            )
-        return value
+    class Meta(ItemSerializer.Meta):
+        fields = [
+            "id",
+            "title",
+            "description",
+            "category",
+            "color",
+            "location",
+            "date",
+        ]
+
+    def create(self, validated_data):
+        validated_data["status"] = "lost"
+        return super().create(validated_data)

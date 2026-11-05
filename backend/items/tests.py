@@ -11,19 +11,17 @@ from items.views import InventoryViewSet, IsSuperUser, LostItemViewSet
 
 
 class LostItemSerializerTests(SimpleTestCase):
-    def test_lost_item_serializer_accepts_lost_reports(self):
+    def test_lost_item_api_only_exposes_lost_report_fields(self):
         serializer = LostItemSerializer()
 
-        self.assertEqual(serializer.validate_status("lost"), "lost")
-
-    def test_lost_item_serializer_rejects_found_reports(self):
-        serializer = LostItemSerializer()
-
-        with self.assertRaisesMessage(
-            ValidationError,
-            "The Lost Items API only accepts reports with status 'lost'.",
-        ):
-            serializer.validate_status("found")
+        self.assertEqual(
+            set(serializer.fields),
+            {"id", "title", "description", "category", "color", "location", "date"},
+        )
+        self.assertNotIn("status", serializer.fields)
+        self.assertNotIn("inventory_status", serializer.fields)
+        self.assertNotIn("storage_location", serializer.fields)
+        self.assertNotIn("inventory_date", serializer.fields)
 
 
 class LostItemViewSetTests(SimpleTestCase):

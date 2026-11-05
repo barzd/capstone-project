@@ -19,6 +19,7 @@ function getErrorMessage(payload: unknown, status: number): string {
 }
 
 export default function LostItemReport() {
+  const [selectedCategory, setSelectedCategory] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submittedItemId, setSubmittedItemId] = useState<string | null>(null)
@@ -34,10 +35,12 @@ export default function LostItemReport() {
     const item = {
       title: String(formData.get("title") ?? "").trim(),
       description: String(formData.get("description") ?? "").trim(),
-      category: String(formData.get("category") ?? "").trim(),
+      category:
+        selectedCategory === "More"
+          ? String(formData.get("custom_category") ?? "").trim()
+          : selectedCategory,
       color: String(formData.get("color") ?? "").trim(),
       location: String(formData.get("location") ?? "").trim(),
-      status: "lost",
       date: String(formData.get("date") ?? ""),
     }
 
@@ -69,6 +72,7 @@ export default function LostItemReport() {
 
       setSubmittedItemId(String(payload.id))
       form.reset()
+      setSelectedCategory("")
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -130,14 +134,43 @@ export default function LostItemReport() {
           </label>
           <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
             Category
-            <input
-              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
-              maxLength={100}
+            <select
+              className="lost-category-select w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+              onChange={(event) => setSelectedCategory(event.target.value)}
+              value={selectedCategory}
               name="category"
-              placeholder="e.g. Accessories"
               required
-            />
+            >
+              <option disabled value="">
+                Select a category
+              </option>
+              <option value="Accessories">Accessories</option>
+              <option value="Bags & Backpacks">Bags &amp; Backpacks</option>
+              <option value="Books & School Supplies">
+                Books &amp; School Supplies
+              </option>
+              <option value="Clothing">Clothing</option>
+              <option value="Electronics">Electronics</option>
+              <option value="ID & Cards">ID &amp; Cards</option>
+              <option value="Keys">Keys</option>
+              <option value="Jewelry">Jewelry</option>
+              <option value="Water Bottles">Water Bottles</option>
+              <option value="More">More</option>
+            </select>
           </label>
+          {selectedCategory === "More" && (
+            <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
+              Specify category
+              <input
+                autoComplete="off"
+                className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+                maxLength={100}
+                name="custom_category"
+                placeholder="Enter a category"
+                required
+              />
+            </label>
+          )}
           <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
             Color
             <input
