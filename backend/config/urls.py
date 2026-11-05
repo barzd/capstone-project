@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from config.views import inventory_return
+from config.views import csrf_token, inventory_return
 from items.views import InventoryViewSet, LostItemViewSet
 
 router = DefaultRouter()
@@ -27,5 +27,9 @@ router.register("inventory", InventoryViewSet, basename="inventory")
 urlpatterns = [
     path("inventory-return/", inventory_return, name="inventory-return"),
     path("admin/", admin.site.urls),
+    path("accounts/", include("allauth.urls")),
+    path("api/auth/csrf/", csrf_token, name="csrf-token"),
     path("api/", include(router.urls)),
+    path("api/auth/", include("dj_rest_auth.urls")),
+    path("api/auth/registration/", include("dj_rest_auth.registration.urls")),
 ]

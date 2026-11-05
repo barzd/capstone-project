@@ -600,19 +600,96 @@ function Sidebar({
   )
 }
 
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  const [username, setUsername] = useState("")
+function LoginScreen({
+  error,
+  onAuthenticated,
+}: {
+  error: string
+  onAuthenticated: () => void
+}) {
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [identifier, setIdentifier] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [registrationMessage, setRegistrationMessage] = useState(false)
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [formError, setFormError] = useState("")
+  const [formMessage, setFormMessage] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const submitLogin = () => {
-    if (!username.trim() || !password.trim()) {
-      setError("Enter your username and password to continue.")
+  const submitCredentials = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setFormError("")
+    setFormMessage("")
+
+    if (isRegistering && password !== confirmPassword) {
+      setFormError("Passwords do not match.")
       return
     }
-    setError("")
-    onLogin()
+
+    setIsSubmitting(true)
+    try {
+      const csrfResponse = await fetch(`${API_BASE_URL}/api/auth/csrf/`, {
+        headers: { Accept: "application/json" },
+        credentials: "include",
+      })
+      if (!csrfResponse.ok) {
+        setFormError("Could not get a CSRF token from Django. Reload and try again.")
+        return
+      }
+      const { csrfToken } = await csrfResponse.json()
+
+      const endpoint = isRegistering
+        ? `${API_BASE_URL}/api/auth/registration/`
+        : `${API_BASE_URL}/api/auth/login/`
+      const body = isRegistering
+        ? {
+            username: identifier.trim(),
+            email: email.trim(),
+            password1: password,
+            password2: confirmPassword,
+          }
+        : {
+            ...(identifier.includes("@")
+              ? { email: identifier.trim() }
+              : { username: identifier.trim() }),
+            password,
+          }
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        credentials: "include",
+        body: JSON.stringify(body),
+      })
+
+      const responseBody = await response.json().catch(() => null)
+      if (!response.ok) {
+        const firstError = responseBody && Object.values(responseBody).flat()[0]
+        setFormError(
+          typeof firstError === "string"
+            ? firstError
+            : "Could not complete the request. Check your details and try again.",
+        )
+        return
+      }
+
+      if (isRegistering) {
+        setIsRegistering(false)
+        setIdentifier(email.trim())
+        setPassword("")
+        setConfirmPassword("")
+        setFormMessage("Account created. Sign in with your new credentials.")
+      } else {
+        onAuthenticated()
+      }
+    } catch {
+      setFormError("Could not reach Django. Check that the backend is running.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -621,87 +698,167 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       style={{ backgroundImage: "url('/assets/fsc-campus-login.jpg')" }}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/5 via-transparent to-emerald-950/35" />
-      <form
+      <section
         className="relative z-10 w-full max-w-[420px] rounded-md border border-black/15 bg-white p-7 shadow-2xl sm:p-9"
-        onSubmit={(event) => {
-          event.preventDefault()
-          submitLogin()
-        }}
       >
         <div className="text-center">
           <p className="font-['Outfit:Bold'] text-[30px] leading-tight font-bold text-[#006747]">
             FSC Lost &amp; Found
           </p>
           <p className="mt-2 font-['Figtree:Medium'] text-sm font-medium text-[#64748b]">
-            Sign in to view and manage campus reports
+            {isRegistering
+              ? "Create an account to join the campus community"
+              : "Sign in to view and manage campus reports"}
           </p>
         </div>
 
-        <div className="mt-7">
-          <label
-            className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
-            htmlFor="username"
-          >
-            Username or Email
-          </label>
-          <input
-            autoComplete="username"
-            className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
-            id="username"
-            onChange={(event) => setUsername(event.target.value)}
-            placeholder="Enter your username or email"
-            type="text"
-            value={username}
-          />
-        </div>
-
-        <div className="mt-4">
-          <label
-            className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
-            htmlFor="password"
-          >
-            Password
-          </label>
-          <input
-            autoComplete="current-password"
-            className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
-            id="password"
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Enter your password"
-            type="password"
-            value={password}
-          />
-        </div>
-
-        {error && (
+        {(formError || error) && (
           <p className="mt-3 rounded-md bg-red-50 px-3 py-2 font-['Figtree:Medium'] text-xs font-medium text-red-700">
-            {error}
+            {formError || error}
           </p>
         )}
 
-        {registrationMessage && (
+        {formMessage && (
           <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 font-['Figtree:Medium'] text-xs font-medium text-emerald-700">
-            Registration will be connected when the account backend is ready.
+            {formMessage}
           </p>
         )}
 
-        <button
-          className="mt-6 w-full cursor-pointer rounded bg-[#006747] px-4 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#005548]"
-          type="submit"
-        >
-          Log In
-        </button>
+        <form className="mt-7" onSubmit={submitCredentials}>
+          <label
+            className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
+            htmlFor="login-identifier"
+          >
+            {isRegistering ? "Username" : "Username or Email"}
+          </label>
+          <input
+            autoComplete={isRegistering ? "username" : "username"}
+            className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
+            id="login-identifier"
+            onChange={(event) => setIdentifier(event.target.value)}
+            placeholder={isRegistering ? "Choose a username" : "Enter your username or email"}
+            required
+            type="text"
+            value={identifier}
+          />
+
+          {isRegistering && (
+            <div className="mt-4">
+              <label
+                className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
+                htmlFor="register-email"
+              >
+                Email
+              </label>
+              <input
+                autoComplete="email"
+                className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
+                id="register-email"
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.edu"
+                required
+                type="email"
+                value={email}
+              />
+            </div>
+          )}
+
+          <div className="mt-4">
+            <label
+              className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
+              htmlFor="login-password"
+            >
+              Password
+            </label>
+            <input
+              autoComplete={isRegistering ? "new-password" : "current-password"}
+              className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
+              id="login-password"
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter your password"
+              required
+              type="password"
+              value={password}
+            />
+          </div>
+
+          {isRegistering && (
+            <div className="mt-4">
+              <label
+                className="block font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]"
+                htmlFor="confirm-password"
+              >
+                Confirm password
+              </label>
+              <input
+                autoComplete="new-password"
+                className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
+                id="confirm-password"
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Re-enter your password"
+                required
+                type="password"
+                value={confirmPassword}
+              />
+            </div>
+          )}
+
+          <button
+            className="mt-6 w-full cursor-pointer rounded bg-[#006747] px-4 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#005548] disabled:cursor-wait disabled:opacity-70"
+            disabled={isSubmitting}
+            type="submit"
+          >
+            {isSubmitting
+              ? "Please wait..."
+              : isRegistering
+                ? "Create Account"
+                : "Log In"}
+          </button>
+        </form>
+
         <button
           className="mt-2 w-full cursor-pointer rounded border-2 border-[#006747] bg-white px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] transition-colors hover:bg-emerald-50"
           onClick={() => {
-            setRegistrationMessage(true)
-            setError("")
+            setIsRegistering(!isRegistering)
+            setFormError("")
+            setFormMessage("")
           }}
           type="button"
         >
-          Register
+          {isRegistering ? "Back to Log In" : "Register"}
         </button>
-      </form>
+
+        <div className="my-5 flex items-center gap-3 text-xs font-medium text-[#64748b]">
+          <span className="h-px flex-1 bg-[#d1d5db]" />
+          OR
+          <span className="h-px flex-1 bg-[#d1d5db]" />
+        </div>
+
+        <button
+          className="flex w-full cursor-pointer items-center justify-center gap-3 rounded border border-[#9ca3af] bg-white px-4 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#17212b] shadow-sm transition-colors hover:bg-[#f8faf9]"
+          onClick={() => {
+            const returnToApp = new URL(window.location.origin)
+            if (
+              returnToApp.hostname === "localhost" &&
+              new URL(API_BASE_URL).hostname === "127.0.0.1"
+            ) {
+              returnToApp.hostname = "127.0.0.1"
+            }
+            returnToApp.searchParams.set("auth", "google")
+            const googleLoginUrl = new URL(
+              "/accounts/google/login/",
+              API_BASE_URL,
+            )
+            googleLoginUrl.searchParams.set("process", "login")
+            googleLoginUrl.searchParams.set("next", returnToApp.toString())
+            window.location.assign(googleLoginUrl.toString())
+          }}
+          type="button"
+        >
+          <span aria-hidden="true" className="font-['Outfit:Bold'] text-lg font-bold text-[#4285f4]">G</span>
+          Continue with Google
+        </button>
+      </section>
     </main>
   )
 }
@@ -1355,6 +1512,582 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Report Lost Item / Report Found Item
+// Both forms share one component (ItemReportScreen). Each saves a new item to
+// the Django backend (POST /api/items/) with status "lost" or "found".
+// Change the backend address with VITE_API_URL in frontend/.env if needed.
+// ---------------------------------------------------------------------------
+
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"
+if (
+  typeof window !== "undefined" &&
+  window.location.hostname === "localhost" &&
+  new URL(API_BASE_URL).hostname === "127.0.0.1"
+) {
+  const canonicalUrl = new URL(window.location.href)
+  canonicalUrl.hostname = "127.0.0.1"
+  window.location.replace(canonicalUrl.toString())
+}
+
+const itemCategories = [
+  "Electronics",
+  "Identification / cards",
+  "Keys",
+  "Wallet / money",
+  "Bag / backpack",
+  "Clothing",
+  "Water bottle",
+  "Books / school supplies",
+  "Jewelry / accessories",
+  "Other",
+]
+
+const campusLocations = [
+  "Campus Center",
+  "Greenley Library",
+  "Nold Athletic Complex",
+  "Laffin Hall",
+  "Lupton Hall",
+  "Whitman Hall",
+  "Hale Hall",
+  "Knapp Hall",
+  "Thompson Hall",
+  "Roosevelt Hall",
+  "Parking lot",
+  "Outdoors / walkway",
+  "Other",
+]
+
+// Staffed places where a finder can hand in an item (found reports only).
+const dropOffLocations = [
+  "University Police",
+  "Campus Center Information Desk",
+  "Greenley Library Front Desk",
+  "Nold Athletic Complex Front Desk",
+]
+
+type ReportKind = "lost" | "found"
+
+type ItemReportForm = {
+  title: string
+  category: string
+  color: string
+  location: string
+  otherLocation: string
+  date: string
+  description: string
+  dropOff: string
+}
+
+type SavedItem = {
+  id: string
+  title: string
+  category: string
+  color: string
+  location: string
+  date: string
+  description: string
+}
+
+const emptyItemReport: ItemReportForm = {
+  title: "",
+  category: "",
+  color: "",
+  location: "",
+  otherLocation: "",
+  date: "",
+  description: "",
+  dropOff: "",
+}
+
+// Wording that differs between the lost and found forms.
+const reportCopy: Record<
+  ReportKind,
+  {
+    pageId: string
+    formTitle: string
+    titlePlaceholder: string
+    locationLabel: string
+    locationError: string
+    dateLabel: string
+    dateError: string
+    descriptionLabel: string
+    descriptionPlaceholder: string
+    submitLabel: string
+    successTitle: (title: string) => string
+    successText: string
+  }
+> = {
+  lost: {
+    pageId: "report-lost",
+    formTitle: "What did you lose?",
+    titlePlaceholder: "e.g. Black JanSport backpack",
+    locationLabel: "Last seen at",
+    locationError: "Choose where you last had it.",
+    dateLabel: "Date lost",
+    dateError: "Choose the date you lost it.",
+    descriptionLabel: "Identifying details",
+    descriptionPlaceholder:
+      "Brand, stickers, scratches, what was inside… Leave out anything private like ID numbers.",
+    submitLabel: "Submit lost item report",
+    successTitle: (title) => `Your report for “${title}” is live`,
+    successText:
+      "Your report is saved. We'll notify you when a similar found item is reported.",
+  },
+  found: {
+    pageId: "report-found",
+    formTitle: "What did you find?",
+    titlePlaceholder: "e.g. Silver iPhone with a blue case",
+    locationLabel: "Where did you find it?",
+    locationError: "Choose where you found it.",
+    dateLabel: "Date found",
+    dateError: "Choose the date you found it.",
+    descriptionLabel: "General description",
+    descriptionPlaceholder:
+      "Describe it just enough to recognize it. Leave out names, serial numbers, and what's inside so the real owner can prove it's theirs.",
+    submitLabel: "Submit found item report",
+    successTitle: (title) => `Thanks for reporting “${title}”`,
+    successText:
+      "Your report is saved. Please hand the item in at the drop-off point below so staff can return it to its owner.",
+  },
+}
+
+function todayIso() {
+  const now = new Date()
+  const offset = now.getTimezoneOffset() * 60000
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10)
+}
+
+function formatReportDate(isoDate: string) {
+  const [year, month, day] = isoDate.split("-").map(Number)
+  if (!year || !month || !day) return isoDate
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  })
+}
+
+const fieldLabelClass =
+  "block font-['Figtree:SemiBold'] text-sm font-semibold text-[#17212b]"
+const fieldInputClass =
+  "mt-1.5 w-full rounded-xl border border-[#cbd8d2] bg-white px-3.5 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+const fieldErrorClass =
+  "mt-1 font-['Figtree:Medium'] text-xs font-medium text-red-600"
+
+function ItemReportScreen({
+  kind,
+  onDone,
+}: {
+  kind: ReportKind
+  onDone: () => void
+}) {
+  const [form, setForm] = useState<ItemReportForm>(emptyItemReport)
+  const [errors, setErrors] = useState<Partial<Record<keyof ItemReportForm, string>>>({})
+  const [submitting, setSubmitting] = useState(false)
+  const [serverError, setServerError] = useState("")
+  const [savedItem, setSavedItem] = useState<SavedItem | null>(null)
+  const [savedDropOff, setSavedDropOff] = useState("")
+
+  const copy = reportCopy[kind]
+  const content = pageContent[copy.pageId]
+  const isFound = kind === "found"
+
+  const update = (field: keyof ItemReportForm, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }))
+    setErrors((current) => ({ ...current, [field]: undefined }))
+  }
+
+  const validate = () => {
+    const next: Partial<Record<keyof ItemReportForm, string>> = {}
+    if (!form.title.trim()) next.title = "Tell us what the item is."
+    if (!form.category) next.category = "Choose a category."
+    if (!form.location) next.location = copy.locationError
+    if (form.location === "Other" && !form.otherLocation.trim())
+      next.otherLocation = "Describe the location."
+    if (!form.date) next.date = copy.dateError
+    else if (form.date > todayIso()) next.date = "The date can't be in the future."
+    if (isFound && !form.dropOff) next.dropOff = "Choose where you'll hand it in."
+    setErrors(next)
+    return Object.keys(next).length === 0
+  }
+
+  const submit = async () => {
+    setServerError("")
+    if (!validate()) return
+
+    const payload: Record<string, string> = {
+      title: form.title.trim(),
+      category: form.category,
+      color: form.color.trim(),
+      location:
+        form.location === "Other" ? form.otherLocation.trim() : form.location,
+      date: form.date,
+      description: form.description.trim(),
+      status: kind,
+    }
+    // storage_location is added to the Item model on the
+    // InventoryFeature-Addition branch. Until that is merged the backend
+    // ignores this field.
+    if (isFound) payload.storage_location = form.dropOff
+
+    setSubmitting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/items/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        const detail =
+          body && typeof body === "object"
+            ? Object.entries(body)
+                .map(([field, messages]) =>
+                  `${field}: ${Array.isArray(messages) ? messages.join(" ") : String(messages)}`,
+                )
+                .join(" · ")
+            : ""
+        setServerError(
+          `The server couldn't save your report (error ${response.status}).${detail ? ` ${detail}` : ""}`,
+        )
+        return
+      }
+      setSavedItem((await response.json()) as SavedItem)
+      setSavedDropOff(form.dropOff)
+    } catch {
+      setServerError(
+        "Couldn't reach the server. Make sure the backend is running (python manage.py runserver) and try again.",
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const startOver = () => {
+    setForm(emptyItemReport)
+    setErrors({})
+    setServerError("")
+    setSavedItem(null)
+    setSavedDropOff("")
+  }
+
+  const summaryRows: [string, string][] = savedItem
+    ? [
+        ["Item", savedItem.title],
+        ["Category", savedItem.category],
+        ["Color", savedItem.color || "—"],
+        [isFound ? "Found at" : "Last seen", savedItem.location],
+        [copy.dateLabel, formatReportDate(savedItem.date)],
+        ...(isFound ? ([["Drop off at", savedDropOff]] as [string, string][]) : []),
+        ["Report ID", savedItem.id],
+      ]
+    : []
+
+  return (
+    <div className="w-full max-w-6xl space-y-6">
+      <section
+        className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${content.gradient} p-7 text-white shadow-xl shadow-slate-900/10 sm:p-9`}
+      >
+        <div className="absolute -top-16 -right-12 size-52 rounded-full border-[32px] border-white/10" />
+        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
+          <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
+            <img alt="" className="size-8 brightness-0 invert" src={content.icon} />
+          </span>
+          <div className="max-w-3xl">
+            <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.16em] text-white/75 uppercase">
+              {content.eyebrow}
+            </p>
+            <p className="mt-2 font-['Outfit:Bold'] text-3xl leading-tight font-bold sm:text-4xl">
+              {content.title}
+            </p>
+            <p className="mt-3 font-['Figtree:Medium'] text-sm leading-6 font-medium text-white/85 sm:text-base">
+              {content.description}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {savedItem ? (
+        <section className="rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8">
+          <div className="flex items-start gap-4">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#006747]">
+              <img alt="" className="size-6 brightness-0 invert" src={content.icon} />
+            </span>
+            <div>
+              <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+                Report submitted
+              </p>
+              <p className="mt-1 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
+                {copy.successTitle(savedItem.title)}
+              </p>
+              <p className="mt-2 max-w-2xl font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#64748b]">
+                {copy.successText}
+              </p>
+            </div>
+          </div>
+
+          <dl className="mt-6 grid gap-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 sm:grid-cols-2">
+            {summaryRows.map(([label, value]) => (
+              <div key={label}>
+                <dt className="font-['Figtree:Medium'] text-xs font-medium text-[#64748b]">
+                  {label}
+                </dt>
+                <dd className="mt-0.5 font-['Figtree:SemiBold'] text-sm font-semibold break-words text-[#17212b]">
+                  {value}
+                </dd>
+              </div>
+            ))}
+            {savedItem.description && (
+              <div className="sm:col-span-2">
+                <dt className="font-['Figtree:Medium'] text-xs font-medium text-[#64748b]">
+                  Details
+                </dt>
+                <dd className="mt-0.5 font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#17212b]">
+                  {savedItem.description}
+                </dd>
+              </div>
+            )}
+          </dl>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button
+              className="cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#00523a]"
+              onClick={onDone}
+              type="button"
+            >
+              Back to home
+            </button>
+            <button
+              className="cursor-pointer rounded-xl border border-[#cbd8d2] bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#334155] transition-colors hover:bg-emerald-50"
+              onClick={startOver}
+              type="button"
+            >
+              Report another item
+            </button>
+          </div>
+        </section>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+          <form
+            className="min-w-0 rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8"
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault()
+              void submit()
+            }}
+          >
+            <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+              Item details
+            </p>
+            <p className="mt-2 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
+              {copy.formTitle}
+            </p>
+
+            <div className="mt-6 grid gap-5 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className={fieldLabelClass} htmlFor={`${kind}-title`}>
+                  Item name <span className="text-red-600">*</span>
+                </label>
+                <input
+                  className={fieldInputClass}
+                  id={`${kind}-title`}
+                  maxLength={200}
+                  onChange={(event) => update("title", event.target.value)}
+                  placeholder={copy.titlePlaceholder}
+                  value={form.title}
+                />
+                {errors.title && <p className={fieldErrorClass}>{errors.title}</p>}
+              </div>
+
+              <div>
+                <label className={fieldLabelClass} htmlFor={`${kind}-category`}>
+                  Category <span className="text-red-600">*</span>
+                </label>
+                <select
+                  className={fieldInputClass}
+                  id={`${kind}-category`}
+                  onChange={(event) => update("category", event.target.value)}
+                  value={form.category}
+                >
+                  <option value="">Select a category</option>
+                  {itemCategories.map((category) => (
+                    <option key={category}>{category}</option>
+                  ))}
+                </select>
+                {errors.category && (
+                  <p className={fieldErrorClass}>{errors.category}</p>
+                )}
+              </div>
+
+              <div>
+                <label className={fieldLabelClass} htmlFor={`${kind}-color`}>
+                  Color
+                </label>
+                <input
+                  className={fieldInputClass}
+                  id={`${kind}-color`}
+                  maxLength={50}
+                  onChange={(event) => update("color", event.target.value)}
+                  placeholder="e.g. Black"
+                  value={form.color}
+                />
+              </div>
+
+              <div>
+                <label className={fieldLabelClass} htmlFor={`${kind}-location`}>
+                  {copy.locationLabel} <span className="text-red-600">*</span>
+                </label>
+                <select
+                  className={fieldInputClass}
+                  id={`${kind}-location`}
+                  onChange={(event) => update("location", event.target.value)}
+                  value={form.location}
+                >
+                  <option value="">Select a campus location</option>
+                  {campusLocations.map((location) => (
+                    <option key={location}>{location}</option>
+                  ))}
+                </select>
+                {errors.location && (
+                  <p className={fieldErrorClass}>{errors.location}</p>
+                )}
+              </div>
+
+              <div>
+                <label className={fieldLabelClass} htmlFor={`${kind}-date`}>
+                  {copy.dateLabel} <span className="text-red-600">*</span>
+                </label>
+                <input
+                  className={fieldInputClass}
+                  id={`${kind}-date`}
+                  max={todayIso()}
+                  onChange={(event) => update("date", event.target.value)}
+                  type="date"
+                  value={form.date}
+                />
+                {errors.date && <p className={fieldErrorClass}>{errors.date}</p>}
+              </div>
+
+              {form.location === "Other" && (
+                <div className="sm:col-span-2">
+                  <label className={fieldLabelClass} htmlFor={`${kind}-other-location`}>
+                    Describe the location <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    className={fieldInputClass}
+                    id={`${kind}-other-location`}
+                    maxLength={200}
+                    onChange={(event) => update("otherLocation", event.target.value)}
+                    placeholder="e.g. Bench outside the bookstore"
+                    value={form.otherLocation}
+                  />
+                  {errors.otherLocation && (
+                    <p className={fieldErrorClass}>{errors.otherLocation}</p>
+                  )}
+                </div>
+              )}
+
+              {isFound && (
+                <div className="sm:col-span-2">
+                  <label className={fieldLabelClass} htmlFor="found-dropoff">
+                    Where will you hand it in? <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    className={fieldInputClass}
+                    id="found-dropoff"
+                    onChange={(event) => update("dropOff", event.target.value)}
+                    value={form.dropOff}
+                  >
+                    <option value="">Select a staffed drop-off point</option>
+                    {dropOffLocations.map((location) => (
+                      <option key={location}>{location}</option>
+                    ))}
+                  </select>
+                  {errors.dropOff ? (
+                    <p className={fieldErrorClass}>{errors.dropOff}</p>
+                  ) : (
+                    <p className="mt-1 font-['Figtree:Medium'] text-xs font-medium text-[#64748b]">
+                      Please don&apos;t arrange a handoff off campus. Staff will
+                      verify the owner before returning it.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="sm:col-span-2">
+                <label className={fieldLabelClass} htmlFor={`${kind}-description`}>
+                  {copy.descriptionLabel}
+                </label>
+                <textarea
+                  className={`${fieldInputClass} min-h-28 resize-y`}
+                  id={`${kind}-description`}
+                  onChange={(event) => update("description", event.target.value)}
+                  placeholder={copy.descriptionPlaceholder}
+                  value={form.description}
+                />
+              </div>
+            </div>
+
+            {serverError && (
+              <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 font-['Figtree:Medium'] text-sm font-medium text-red-700">
+                {serverError}
+              </p>
+            )}
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                className="cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-md transition-colors hover:bg-[#00523a] disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={submitting}
+                type="submit"
+              >
+                {submitting ? "Submitting…" : copy.submitLabel}
+              </button>
+              <button
+                className="cursor-pointer rounded-xl border border-[#cbd8d2] bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#334155] transition-colors hover:bg-emerald-50"
+                onClick={onDone}
+                type="button"
+              >
+                Cancel
+              </button>
+              <p className="font-['Figtree:Medium'] text-xs font-medium text-[#7c8b85] sm:ml-auto">
+                <span className="text-red-600">*</span> Required
+              </p>
+            </div>
+          </form>
+
+          <aside className="h-fit rounded-3xl border border-emerald-100 bg-emerald-50 p-6">
+            <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+              {content.panelLabel}
+            </p>
+            <p className="mt-2 font-['Outfit:Bold'] text-xl font-bold text-[#17212b]">
+              {content.panelTitle}
+            </p>
+            <ol className="mt-5 space-y-4">
+              {content.highlights.map((highlight, index) => (
+                <li className="flex gap-3" key={highlight.title}>
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white font-['Outfit:Bold'] text-xs font-bold text-[#006747] shadow-sm">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-['Figtree:SemiBold'] text-sm font-semibold text-[#17212b]">
+                      {highlight.title}
+                    </p>
+                    <p className="mt-0.5 font-['Figtree:Medium'] text-xs leading-5 font-medium text-[#64748b]">
+                      {highlight.description}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </aside>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SectionScreen({ content }: { content: PageContent }) {
   const [chatOpen, setChatOpen] = useState(false)
   const openChat = () => {
@@ -1478,9 +2211,11 @@ function SectionScreen({ content }: { content: PageContent }) {
 }
 
 export default function App() {
+  const authReturn = new URLSearchParams(window.location.search).get("auth")
   const returningFromAdmin =
     new URLSearchParams(window.location.search).get("admin_inventory") === "1"
   const [isLoggedIn, setIsLoggedIn] = useState(returningFromAdmin)
+  const [authError, setAuthError] = useState("")
   const [activeItem, setActiveItem] = useState(
     returningFromAdmin ? "inventory" : "home",
   )
@@ -1491,6 +2226,48 @@ export default function App() {
     const saved = localStorage.getItem("fsc-font-size")
     return saved === "small" || saved === "large" ? saved : "default"
   })
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function checkDjangoSession() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/user/`, {
+          headers: { Accept: "application/json" },
+          credentials: "include",
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          if (authReturn === "google") {
+            setAuthError(
+              response.status === 401 || response.status === 403
+                ? "Django did not receive the Google session. Use 127.0.0.1 for the app and try again."
+                : `Django could not verify the session (HTTP ${response.status}).`,
+            )
+          }
+          return
+        }
+
+        setIsLoggedIn(true)
+        if (authReturn === "google") setActiveItem("home")
+      } catch {
+        if (controller.signal.aborted) return
+        if (authReturn === "google") {
+          setAuthError("Could not reach Django to verify your Google sign-in.")
+        }
+      } finally {
+        if (authReturn === "google" && !controller.signal.aborted) {
+          const url = new URL(window.location.href)
+          url.searchParams.delete("auth")
+          window.history.replaceState({}, "", url)
+        }
+      }
+    }
+
+    void checkDjangoSession()
+    return () => controller.abort()
+  }, [authReturn])
 
   useEffect(() => {
     localStorage.setItem("fsc-dark-mode", String(darkMode))
@@ -1515,7 +2292,12 @@ export default function App() {
   }, [fontSize])
 
   if (!isLoggedIn) {
-    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />
+    return (
+      <LoginScreen
+        error={authError}
+        onAuthenticated={() => setIsLoggedIn(true)}
+      />
+    )
   }
 
   return (
@@ -1528,12 +2310,39 @@ export default function App() {
       <div className="flex flex-1 flex-col md:flex-row">
         <Sidebar
           activeItem={activeItem}
-          onLogout={() => setIsLoggedIn(false)}
+          onLogout={async () => {
+            const csrfCookie = document.cookie
+              .split("; ")
+              .find((entry) => entry.startsWith("csrftoken="))
+            const csrfToken = csrfCookie?.slice("csrftoken=".length)
+
+            try {
+              const response = await fetch(`${API_BASE_URL}/api/auth/logout/`, {
+                method: "POST",
+                headers: csrfToken ? { "X-CSRFToken": csrfToken } : {},
+                credentials: "include",
+              })
+
+              if (!response.ok) {
+                setAuthError("Django could not end the session. Sign in again after refreshing.")
+              }
+            } catch {
+              setAuthError("Could not reach Django to end the session.")
+            }
+
+            setIsLoggedIn(false)
+          }}
           onSelect={setActiveItem}
         />
         <main className="flex min-w-0 flex-1 items-start justify-center p-5 sm:p-8 lg:p-10">
           {activeItem === "home" ? (
             <HomeScreen onSelect={setActiveItem} />
+          ) : activeItem === "report-lost" || activeItem === "report-found" ? (
+            <ItemReportScreen
+              key={activeItem}
+              kind={activeItem === "report-lost" ? "lost" : "found"}
+              onDone={() => setActiveItem("home")}
+            />
           ) : activeItem === "inventory" ? (
             <InventoryScreen />
           ) : activeItem === "report-lost" ? (
