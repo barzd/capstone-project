@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react"
 
-const itemsApiUrl = `http://${window.location.hostname}:8000/api/items/`
+const inventoryApiUrl = `http://${window.location.hostname}:8000/api/inventory/`
 
 function localDateValue(): string {
   const date = new Date()
@@ -47,7 +47,7 @@ function FoundItemReport({
     }
 
     try {
-      const response = await fetch(itemsApiUrl, {
+      const response = await fetch(inventoryApiUrl, {
         method: "POST",
         headers: {
           Accept: "application/json",

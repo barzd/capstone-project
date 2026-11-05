@@ -100,7 +100,9 @@ Use `127.0.0.1` consistently for the frontend and backend. Browsers treat
    Inventory if needed.
 
 The Inventory list shows found items with their name, description, location
-found, date found, and storage location.
+found, date found, and storage location. Listing found items is also available
+without a Django superuser from Browse Item Reports; deleting items still
+requires a superuser.
 
 ## 5. Add a test found item
 
@@ -108,10 +110,9 @@ In the app, select **Report Found Item**, enter the test item's details, and
 select **Record Found Item**. A successful response displays the generated item
 ID; the item is automatically marked available and appears in Inventory.
 
-You can also create a test item through the Items API. In the same browser
-where you signed in to Django admin, open:
+You can also create a test found item through the Inventory API. Open:
 
-<http://127.0.0.1:8000/api/items/>
+<http://127.0.0.1:8000/api/inventory/>
 
 Use the browsable API's **POST** form to create a test item, for example:
 
@@ -128,20 +129,28 @@ Use the browsable API's **POST** form to create a test item, for example:
 }
 ```
 
-Set `"status": "found"` for the item to appear in Inventory. The API generates
-an ID when it saves the item. Return to the app and refresh the Inventory view.
+Only records with `"status": "found"` can be added to Inventory. The API
+generates an ID and marks the item available when it saves. Return to the app
+and refresh the Inventory view.
 
-## 6. View the inventory API
+## 6. Add a test lost item
 
-While signed in as a superuser in the same browser, open:
+Submit the **Report a Lost Item** form in the app, or open
+<http://127.0.0.1:8000/api/lost-items/> and use the browsable API's **POST**
+form with `"status": "lost"`. Lost reports are listed separately from found
+items in Inventory. The Lost Items API rejects reports with any other status.
+
+## 7. View the APIs
+
+Open the Inventory API:
 
 <http://127.0.0.1:8000/api/inventory/>
 
-The endpoint returns found items and is restricted to Django superusers.
-Without a superuser session, access should be denied. The general Items API is
-at <http://127.0.0.1:8000/api/items/>.
+The endpoint returns found items. Listing and retrieving found items is public;
+deleting them requires a Django superuser. The Lost Items API at
+<http://127.0.0.1:8000/api/lost-items/> returns only lost reports.
 
-## 7. Test deleting an item
+## 8. Test deleting an item
 
 In the app's Inventory table:
 
@@ -159,8 +168,8 @@ the team has approved for deletion.
 |---|---|
 | <http://127.0.0.1:5173> | Frontend app |
 | <http://127.0.0.1:8000/admin/> | Django admin login |
-| <http://127.0.0.1:8000/api/items/> | Items API; add test found records here |
-| <http://127.0.0.1:8000/api/inventory/> | Superuser-only found items API |
+| <http://127.0.0.1:8000/api/lost-items/> | Lost reports API |
+| <http://127.0.0.1:8000/api/inventory/> | Found items API; deleting requires a superuser |
 
 ## Troubleshooting
 

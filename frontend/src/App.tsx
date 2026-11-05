@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import InventoryScreen from "./Inventory"
 import FoundItemReport from "./FoundItemReport"
+import LostItemReport from "./LostItemReport"
+import ReportsScreen from "./Reports"
 
 const assetPathPrefix = "/assets"
 const imgHomeIcon = `${assetPathPrefix}/6c43b.svg`
@@ -867,7 +869,11 @@ const resolvedReports = [
   },
 ]
 
-function ResolvedReportsScreen() {
+function ResolvedReportsScreen({
+  onBrowseActiveReports,
+}: {
+  onBrowseActiveReports: () => void
+}) {
   const [filter, setFilter] = useState("All")
   const filters = ["All", "This week", "Lost items", "Found items"]
   const visibleReports = resolvedReports.filter((report) => {
@@ -1025,6 +1031,7 @@ function ResolvedReportsScreen() {
         </div>
         <button
           className="w-fit shrink-0 cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#00523a]"
+          onClick={onBrowseActiveReports}
           type="button"
         >
           Browse active reports
@@ -1459,10 +1466,16 @@ export default function App() {
             <HomeScreen onSelect={setActiveItem} />
           ) : activeItem === "inventory" ? (
             <InventoryScreen />
+          ) : activeItem === "report-lost" ? (
+            <LostItemReport />
+          ) : activeItem === "report-list" ? (
+            <ReportsScreen />
           ) : activeItem === "report-found" ? (
             <FoundItemReport onOpenInventory={() => setActiveItem("inventory")} />
           ) : activeItem === "recently-resolved" ? (
-            <ResolvedReportsScreen />
+            <ResolvedReportsScreen
+              onBrowseActiveReports={() => setActiveItem("report-list")}
+            />
           ) : activeItem === "settings" ? (
             <SettingsScreen
               darkMode={darkMode}

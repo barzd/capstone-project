@@ -85,7 +85,8 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-Open <http://127.0.0.1:8000/api/items/>. If you see the items list, you're connected.
+Open <http://127.0.0.1:8000/api/lost-items/>. If you see the lost items list,
+you're connected.
 
 > `http://127.0.0.1:8000/` on its own shows "Page not found." That's expected — the API lives under `/api/`.
 
@@ -105,7 +106,8 @@ python manage.py runserver
 
 | URL | What it is |
 |---|---|
-| <http://127.0.0.1:8000/api/items/> | Items API (browsable in the browser) |
+| <http://127.0.0.1:8000/api/lost-items/> | Lost Items API (lost reports only) |
+| <http://127.0.0.1:8000/api/inventory/> | Found items API |
 | <http://127.0.0.1:8000/admin/> | Django admin (create a login with `python manage.py createsuperuser`) |
 
 ## Notes for writing code
