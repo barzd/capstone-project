@@ -122,3 +122,42 @@
 .theme-dark .report-found-button [class*='text-[#0f172a]'] {
   color: #fff;
 }
+.minimal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #bdc9c3 transparent;
+}
+
+.minimal-scrollbar:hover {
+  scrollbar-color: #899d92 transparent;
+}
+
+.minimal-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #bdc9c3;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #899d92;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-button {
+  display: none;
+}
+
+.theme-dark .minimal-scrollbar {
+  scrollbar-color: #53655d transparent;
+}
+
+.theme-dark .minimal-scrollbar::-webkit-scrollbar-thumb {
+  background: #53655d;
+}
+

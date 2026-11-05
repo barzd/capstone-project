@@ -483,7 +483,7 @@ function Sidebar({
   onSelect: (id: string) => void
 }) {
   return (
-    <aside className="w-full shrink-0 border-b border-[#d1fae5] bg-white px-4 py-6 md:w-[280px] md:border-r md:border-b-0">
+    <aside className={`minimal-scrollbar min-h-0 w-full shrink-0 overflow-y-auto overscroll-contain border-b border-[#d1fae5] bg-white px-4 py-6 md:w-[280px] md:border-r md:border-b-0 ${activeItem === "campus-map" ? "max-h-[35dvh] md:max-h-none" : ""}`}>
       <div className="flex flex-col gap-7">
         <div className="flex items-center gap-2.5 pl-2">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#006456]">
@@ -2241,12 +2241,12 @@ export default function App() {
 
   return (
     <div
-      className={`flex min-h-screen flex-col bg-[#f8faf9] ${
+      className={`flex min-h-screen flex-col bg-[#f8faf9] ${activeItem === "campus-map" ? "h-dvh min-h-0 overflow-hidden" : ""} ${
         darkMode ? "theme-dark" : ""
       }`}
     >
       <TopBar />
-      <div className="flex flex-1 flex-col md:flex-row">
+      <div className={`flex flex-1 flex-col md:flex-row ${activeItem === "campus-map" ? "min-h-0 overflow-hidden" : ""}`}>
         <Sidebar
           activeItem={activeItem}
           onLogout={async () => {
@@ -2273,7 +2273,7 @@ export default function App() {
           }}
           onSelect={setActiveItem}
         />
-        <main className="flex min-w-0 flex-1 items-start justify-center p-5 sm:p-8 lg:p-10">
+        <main className={`flex min-w-0 flex-1 justify-center ${activeItem === "campus-map" ? "min-h-0 overflow-hidden" : "items-start p-5 sm:p-8 lg:p-10"}`}>
           {activeItem === "home" ? (
             <HomeScreen onSelect={setActiveItem} />
           ) : activeItem === "report-lost" || activeItem === "report-found" ? (

@@ -2,25 +2,35 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Map as MapLibreMap,
   NavigationControl,
+  Marker,
   setWorkerUrl,
   type GeoJSONSource,
   type MapGeoJSONFeature,
+  type ExpressionSpecification,
 } from "maplibre-gl"
 import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url"
 import "maplibre-gl/dist/maplibre-gl.css"
 import campusBoundary from "./campus-boundary-display.json"
+import { campusBuildingLabels } from "./campus-building-labels"
+import "./campus-map-labels.css"
+import type { Feature } from "geojson"
+import { groupCampusInventory } from "./campus-inventory"
 
 const apiBaseUrl = (import.meta.env.VITE_API_URL ?? `http://${window.location.hostname}:8000`).replace(/\/$/, "")
 const itemsApiUrl = `${apiBaseUrl}/api/items/`
 const buildingsLayerId = "campus-building-footprints"
+const labeledBuildingsSourceId = "labeled-campus-buildings"
 const campusOutlineSourceId = "campus-boundary-outline"
 const campusOutlineLayerId = "campus-boundary-line"
 const campusMaskSourceId = "campus-outside-mask-source"
 const campusMaskLayerId = "campus-outside-mask"
-const hoveredBuildingSourceId = "hovered-building-geometry"
-const hoveredBuildingLayerId = "hovered-building-highlight"
 const selectedBuildingLayerId = "selected-campus-building"
 const selectedBuildingSourceId = "selected-campus-building-geometry"
+const buildingHeight: ExpressionSpecification = [
+  "max",
+  4,
+  ["to-number", ["get", "render_height"], ["to-number", ["get", "height"], 10]],
+]
 const campusBounds: [[number, number], [number, number]] = [
   [-73.435, 40.7463307],
   [-73.4222847, 40.7612244],
@@ -30,49 +40,17 @@ const navigationBounds: [[number, number], [number, number]] = [
   [campusBounds[1][0] + 0.015, campusBounds[1][1] + 0.008],
 ]
 const campusPolygons = campusBoundary.geometry.coordinates as number[][][][]
-
-type CampusBuilding = {
-  number: string
-  name: string
-  grid: string
-  locations?: string[]
+// Solar Car Port in Lot 5 (OSM way 813340825). Padding covers tile quantization.
+const solarCarportExclusion = {
+  type: "Polygon" as const,
+  coordinates: [[
+    [-73.43291, 40.75118],
+    [-73.43222, 40.75118],
+    [-73.43222, 40.75171],
+    [-73.43291, 40.75171],
+    [-73.43291, 40.75118],
+  ]],
 }
-
-const campusBuildings: CampusBuilding[] = [
-  { number: "65", name: "Alumni Hall", grid: "E-5" },
-  { number: "08", name: "Campus Center / Bookstore", grid: "F-3", locations: ["Campus Center", "Bookstore"] },
-  { number: "06", name: "Campus Commons", grid: "F-3" },
-  { number: "33", name: "Children's Center", grid: "G-6" },
-  { number: "12", name: "Conklin Hall", grid: "E-3" },
-  { number: "03", name: "Cutler Hall", grid: "F-4" },
-  { number: "91", name: "Dewey Hall", grid: "E-6" },
-  { number: "07", name: "Gleeson Hall", grid: "E-3" },
-  { number: "04", name: "Greenhouse", grid: "F-4" },
-  { number: "18", name: "Greenley Library", grid: "D-4" },
-  { number: "14", name: "Hale Hall", grid: "D-3" },
-  { number: "89", name: "Health & Wellness Center", grid: "E-6" },
-  { number: "71", name: "Heating Plant", grid: "E-2" },
-  { number: "05", name: "Hicks Hall", grid: "F-4" },
-  { number: "15", name: "Hooper Hall", grid: "E-5" },
-  { number: "54", name: "Horton Hall", grid: "F-3" },
-  { number: "40", name: "Knapp Hall", grid: "D-4" },
-  { number: "02", name: "Laffin Hall", grid: "D-5", locations: ["Laffin Hall"] },
-  { number: "92", name: "Lehman Hall", grid: "F-6" },
-  { number: "63", name: "Lupton Hall", grid: "C-4" },
-  { number: "66", name: "Memorial Hall", grid: "D-5" },
-  { number: "85", name: "Nold Athletic Complex", grid: "B-5", locations: ["Nold Athletic Complex"] },
-  { number: "115", name: "Orchard Hall", grid: "F-7" },
-  { number: "42", name: "Roosevelt Hall", grid: "C-4" },
-  { number: "70", name: "Service Building", grid: "E-2" },
-  { number: "94", name: "Sinclair Hall", grid: "F-5" },
-  { number: "", name: "Smart Energy House", grid: "D-6" },
-  { number: "01", name: "The Cottage", grid: "F-5" },
-  { number: "41", name: "Thompson Hall", grid: "F-4" },
-  { number: "46", name: "University Police", grid: "G-3" },
-  { number: "11", name: "Ward Hall", grid: "E-4" },
-  { number: "50", name: "Whitman Hall", grid: "E-4" },
-  { number: "116", name: "Business School", grid: "E-5" },
-]
 
 function pointInRing(point: [number, number], ring: number[][]) {
   let inside = false
@@ -147,7 +125,9 @@ function polygonAtPoint(
 }
 
 function isCampusFootprint(polygon: number[][][]) {
-  return polygon[0]?.length > 0 && polygon[0].every(([lng, lat]) => isInsideCampus([lng, lat]))
+  return polygon[0]?.length > 0 && polygon[0].every(([lng, lat]) =>
+    isInsideCampus([lng, lat]) && !pointInRing([lng, lat], solarCarportExclusion.coordinates[0]),
+  )
 }
 
 // Work in approximate local meters so longitude and latitude have comparable scales.
@@ -235,14 +215,20 @@ export default function CampusMap() {
   const mapRef = useRef<MapLibreMap | null>(null)
   const [items, setItems] = useState<FoundItem[]>([])
   const [selectedBuilding, setSelectedBuilding] = useState("")
+  const selectedBuildingRef = useRef(selectedBuilding)
+  const refreshLabelsRef = useRef<(() => void) | null>(null)
+  const refreshSelectionRef = useRef<(() => void) | null>(null)
+  const refreshCountsRef = useRef<((counts: Map<string, number>, loading: boolean, failed: boolean) => void) | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isMapLoaded, setIsMapLoaded] = useState(false)
   const [loadError, setLoadError] = useState("")
   const [mapError, setMapError] = useState("")
 
-  function selectBuilding(building: CampusBuilding) {
-    setSelectedBuilding(building.name)
-  }
+  useEffect(() => {
+    selectedBuildingRef.current = selectedBuilding
+    refreshLabelsRef.current?.()
+    refreshSelectionRef.current?.()
+  }, [selectedBuilding])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -275,6 +261,12 @@ export default function CampusMap() {
       container: mapContainerRef.current,
       style: {
         version: 8,
+        light: {
+          anchor: "viewport",
+          color: "#fffaf3",
+          intensity: 0.25,
+          position: [1.5, 210, 45],
+        },
         sources: {
           aerial: {
             type: "raster",
@@ -301,8 +293,80 @@ export default function CampusMap() {
       maxBounds: navigationBounds,
     })
     mapRef.current = map
+    const resizeObserver = new ResizeObserver(() => map.resize())
+    resizeObserver.observe(mapContainerRef.current)
     ;(window as Window & { campusDebugMap?: MapLibreMap }).campusDebugMap = map
     map.addControl(new NavigationControl({ showCompass: false }), "top-right")
+    const labels = campusBuildingLabels.filter((label) => label.name.trim()).map((label) => {
+      const element = document.createElement("div")
+      element.className = "campus-map-label"
+      const bubble = document.createElement("button")
+      bubble.type = "button"
+      bubble.className = "campus-map-label-bubble"
+      const name = document.createElement("span")
+      name.textContent = label.name
+      const badge = document.createElement("span")
+      badge.className = "campus-map-label-count"
+      badge.textContent = "..."
+      badge.setAttribute("aria-hidden", "true")
+      bubble.append(name, badge)
+      bubble.setAttribute("aria-label", `Select ${label.name}`)
+      bubble.addEventListener("click", (event) => {
+        event.stopPropagation()
+        setSelectedBuilding(label.name)
+      })
+      bubble.addEventListener("dblclick", (event) => event.stopPropagation())
+      element.append(bubble)
+      const marker = new Marker({
+        element,
+        anchor: "bottom",
+        offset: label.offset ?? [0, -18],
+        pitchAlignment: "viewport",
+        rotationAlignment: "viewport",
+      }).setLngLat(label.coordinates).addTo(map)
+      return { label, element, marker, bubble, badge }
+    })
+    const refreshLabels = () => {
+      const occupied: DOMRect[] = []
+      const container = map.getContainer().getBoundingClientRect()
+      const ordered = [...labels].sort((a, b) =>
+        Number(b.label.name === selectedBuildingRef.current) - Number(a.label.name === selectedBuildingRef.current)
+        || (b.label.priority ?? 0) - (a.label.priority ?? 0),
+      )
+      for (const { label, element } of ordered) {
+        const selected = label.name === selectedBuildingRef.current
+        element.classList.toggle("is-selected", selected)
+        element.querySelector("button")?.setAttribute("aria-pressed", String(selected))
+        const bounds = element.getBoundingClientRect()
+        const inView = bounds.right > container.left && bounds.left < container.right
+          && bounds.bottom > container.top && bounds.top < container.bottom
+        const overlaps = occupied.some((other) => bounds.left < other.right + 6
+          && bounds.right + 6 > other.left && bounds.top < other.bottom + 6 && bounds.bottom + 6 > other.top)
+        const visible = inView && (selected || (map.getZoom() >= (label.minZoom ?? 15.4) && !overlaps))
+        element.style.visibility = visible ? "visible" : "hidden"
+        if (visible) occupied.push(bounds)
+      }
+    }
+    refreshLabelsRef.current = refreshLabels
+    refreshCountsRef.current = (counts, loading, failed) => {
+      for (const { label, bubble, badge } of labels) {
+        const count = counts.get(label.name) ?? 0
+        const summary = loading ? "Loading found items" : failed ? "Item count unavailable"
+          : `${count} found ${count === 1 ? "item" : "items"}`
+        badge.textContent = loading ? "..." : failed ? "?" : String(count)
+        badge.classList.toggle("has-items", !loading && !failed && count > 0)
+        bubble.setAttribute("aria-label", `Select ${label.name}: ${summary}`)
+        bubble.title = `${label.name}: ${summary}`
+      }
+      refreshLabels()
+    }
+    map.on("render", refreshLabels)
+    if (import.meta.env.DEV) {
+      map.on("contextmenu", (event) => {
+        event.preventDefault()
+        console.info(`Building label: { name: "", coordinates: [${event.lngLat.lng.toFixed(7)}, ${event.lngLat.lat.toFixed(7)}] },`)
+      })
+    }
 
     map.on("load", () => {
       if (!map.getSource("openmaptiles")) {
@@ -310,21 +374,86 @@ export default function CampusMap() {
         return
       }
 
+      // Keep the vector tiles loaded for footprint matching, without displaying
+      // every structure supplied by the basemap.
       map.addLayer({
-        id: buildingsLayerId,
-        type: "fill-extrusion",
+        id: "campus-building-tile-loader",
+        type: "fill",
         source: "openmaptiles",
         "source-layer": "building",
         minzoom: 14,
+        paint: { "fill-opacity": 0 },
+      })
+      map.addSource(labeledBuildingsSourceId, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      })
+      let refreshFrame: number | undefined
+      let labeledFootprints: Feature[] = []
+      const refreshBuildingFootprints = () => {
+        if (refreshFrame !== undefined) return
+        refreshFrame = requestAnimationFrame(() => {
+          refreshFrame = undefined
+          if (mapRef.current !== map) return
+          const candidates = map.querySourceFeatures("openmaptiles", { sourceLayer: "building" })
+          const features = campusBuildingLabels.filter((label) => label.name.trim()).flatMap((label, index) => {
+            let best: MapGeoJSONFeature | undefined
+            let bestDistance = Infinity
+            for (const candidate of candidates) {
+              const geometry = polygonAtPoint(candidate.geometry, label.coordinates)
+              if (!geometry || geometry.type !== "Polygon") continue
+              const [outer, ...holes] = geometry.coordinates as number[][][]
+              const inside = pointInRing(label.coordinates, outer)
+                && !holes.some((hole) => pointInRing(label.coordinates, hole))
+              const distance = inside ? 0 : distanceToRing(label.coordinates, outer)
+              if (distance < bestDistance) {
+                best = candidate as MapGeoJSONFeature
+                bestDistance = distance
+              }
+            }
+            // Labels placed on a tilted roof can sit outside the ground outline.
+            if (!best || bestDistance > 25) return []
+            const geometry = completeBuildingGeometry(map, best, label.coordinates)
+            return geometry ? [{
+              type: "Feature" as const,
+              id: index,
+              geometry,
+              properties: { ...best.properties, name: label.name, campusLabel: label.name },
+            }] : []
+          })
+          ;(map.getSource(labeledBuildingsSourceId) as GeoJSONSource).setData({ type: "FeatureCollection", features })
+          labeledFootprints = features
+          refreshSelectionRef.current?.()
+        })
+      }
+      map.on("sourcedata", (event) => {
+        if (event.sourceId === "openmaptiles" && event.isSourceLoaded) refreshBuildingFootprints()
+      })
+      map.on("moveend", refreshBuildingFootprints)
+      refreshBuildingFootprints()
+      map.addLayer({
+        id: "campus-building-foundations",
+        type: "line",
+        source: labeledBuildingsSourceId,
+        minzoom: 14,
+        layout: { "line-join": "round" },
         paint: {
-          "fill-extrusion-color": "#ded9cd",
-          "fill-extrusion-height": [
-            "max",
-            4,
-            ["to-number", ["get", "render_height"], ["to-number", ["get", "height"], 10]],
-          ],
+          "line-color": "#777268",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.6, 18, 1.5],
+          "line-opacity": 0.65,
+        },
+      })
+      map.addLayer({
+        id: buildingsLayerId,
+        type: "fill-extrusion",
+        source: labeledBuildingsSourceId,
+        minzoom: 14,
+        paint: {
+          // Warm, opaque concrete with soft directional shading.
+          "fill-extrusion-color": "#c9c3b8",
+          "fill-extrusion-height": buildingHeight,
           "fill-extrusion-base": ["to-number", ["get", "render_min_height"], 0],
-          "fill-extrusion-opacity": 0.98,
+          "fill-extrusion-opacity": 1,
           "fill-extrusion-vertical-gradient": true,
         },
       })
@@ -343,7 +472,7 @@ export default function CampusMap() {
       })
       map.addSource(campusOutlineSourceId, {
         type: "geojson",
-        data: campusBoundary,
+        data: campusBoundary as Feature,
       })
       map.addLayer({
         id: campusOutlineLayerId,
@@ -355,100 +484,43 @@ export default function CampusMap() {
           "line-opacity": 0.96,
         },
       })
-      map.addSource(hoveredBuildingSourceId, {
+      map.addSource(selectedBuildingSourceId, {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       })
       map.addLayer({
-        id: hoveredBuildingLayerId,
-        type: "fill-extrusion",
-        source: hoveredBuildingSourceId,
+        id: "selected-campus-building-outline",
+        type: "line",
+        source: selectedBuildingSourceId,
+        layout: { "line-join": "round" },
         paint: {
-          "fill-extrusion-color": "#facc15",
-          "fill-extrusion-height": [
-            "max",
-            30,
-            ["to-number", ["get", "render_height"], ["to-number", ["get", "height"], 10]],
-          ],
-          "fill-extrusion-base": ["to-number", ["get", "render_min_height"], 0],
-          "fill-extrusion-opacity": 0.98,
-          "fill-extrusion-vertical-gradient": false,
+          "line-color": "#9f302c",
+          "line-width": 2,
+          "line-opacity": 0.9,
         },
-      })
-      map.addSource(selectedBuildingSourceId, {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
       })
       map.addLayer({
         id: selectedBuildingLayerId,
         type: "fill-extrusion",
         source: selectedBuildingSourceId,
         paint: {
-          "fill-extrusion-color": "#ef4444",
-          "fill-extrusion-height": [
-            "max",
-            30,
-            ["to-number", ["get", "render_height"], ["to-number", ["get", "height"], 10]],
-          ],
+          "fill-extrusion-color": "#dc4038",
+          "fill-extrusion-height": ["max", 30, buildingHeight],
           "fill-extrusion-base": ["to-number", ["get", "render_min_height"], 0],
-          "fill-extrusion-opacity": 0.98,
-          "fill-extrusion-vertical-gradient": false,
+          "fill-extrusion-opacity": 1,
+          "fill-extrusion-vertical-gradient": true,
         },
       })
-      map.on("mousemove", buildingsLayerId, (event) => {
-        const hoveredSource = map.getSource(hoveredBuildingSourceId) as GeoJSONSource
-        const feature = event.features?.[0] as MapGeoJSONFeature | undefined
-        const point: [number, number] = [event.lngLat.lng, event.lngLat.lat]
-        const geometry = feature && isInsideCampus(point) ? completeBuildingGeometry(map, feature, point) : null
-        if (!feature || !geometry) {
-          hoveredSource.setData({ type: "FeatureCollection", features: [] })
-          map.getCanvas().style.cursor = ""
-          return
-        }
-
-        map.getCanvas().style.cursor = "pointer"
-        hoveredSource.setData({
+      refreshSelectionRef.current = () => {
+        const feature = labeledFootprints.find((entry) => entry.properties?.campusLabel === selectedBuildingRef.current)
+        ;(map.getSource(selectedBuildingSourceId) as GeoJSONSource).setData({
           type: "FeatureCollection",
-          features: [{
-            type: "Feature",
-            geometry,
-            properties: { ...feature.properties },
-          }],
+          features: feature ? [feature] : [],
         })
-      })
-      map.on("click", buildingsLayerId, (event) => {
-        const feature = event.features?.[0] as MapGeoJSONFeature | undefined
-        if (!feature) return
-        if (!isInsideCampus([event.lngLat.lng, event.lngLat.lat])) return
-        const geometry = completeBuildingGeometry(map, feature, [event.lngLat.lng, event.lngLat.lat])
-        if (!geometry) return
-
-        const properties = feature.properties ?? {}
-        const featureName = [properties.name, properties.name_en, properties["addr:housename"]]
-          .find((value) => typeof value === "string" && value.trim())
-        const building = campusBuildings.find((entry) =>
-          featureName && entry.name.toLocaleLowerCase().includes(String(featureName).toLocaleLowerCase()),
-        )
-        selectBuilding(building ?? { number: "", name: String(featureName ?? "Unnamed building"), grid: "" })
-        const hoveredSource = map.getSource(hoveredBuildingSourceId) as GeoJSONSource
-        hoveredSource.setData({ type: "FeatureCollection", features: [] })
-        const selectedSource = map.getSource(selectedBuildingSourceId) as GeoJSONSource
-        selectedSource.setData({
-          type: "FeatureCollection",
-          features: [{
-            type: "Feature",
-            geometry,
-            properties: { ...properties },
-          }],
-        })
-      })
-      map.on("mouseenter", buildingsLayerId, () => { map.getCanvas().style.cursor = "pointer" })
-      map.on("mouseleave", buildingsLayerId, () => {
-        map.getCanvas().style.cursor = ""
-        const hoveredSource = map.getSource(hoveredBuildingSourceId) as GeoJSONSource
-        hoveredSource.setData({ type: "FeatureCollection", features: [] })
-      })
-
+        map.setFilter(buildingsLayerId, feature
+          ? ["!=", ["get", "campusLabel"], selectedBuildingRef.current]
+          : null)
+      }
       map.fitBounds(campusBounds, {
         padding: 8,
         maxZoom: 15.4,
@@ -462,21 +534,36 @@ export default function CampusMap() {
     })
 
     return () => {
+      resizeObserver.disconnect()
+      refreshCountsRef.current = null
+      refreshSelectionRef.current = null
+      refreshLabelsRef.current = null
+      map.off("render", refreshLabels)
+      labels.forEach(({ marker }) => marker.remove())
       map.remove()
       mapRef.current = null
     }
   }, [])
 
-  const buildingItems = useMemo(() => {
-    if (!selectedBuilding) return []
-    const building = campusBuildings.find((entry) => entry.name === selectedBuilding)
-    const locations = (building?.locations ?? [selectedBuilding]).map((location) => location.toLocaleLowerCase())
-    return items.filter((item) => locations.some((location) => item.location.toLocaleLowerCase().includes(location)))
-  }, [items, selectedBuilding])
+  const inventoryBuildings = useMemo(() => groupCampusInventory(items, campusBuildingLabels), [items])
+  useEffect(() => {
+    refreshCountsRef.current?.(
+      new Map(inventoryBuildings.map((building) => [building.name, building.items.length])),
+      isLoading,
+      Boolean(loadError),
+    )
+  }, [inventoryBuildings, isLoading, loadError])
+  const labeledItems = useMemo(() => {
+    const matched = new Set(inventoryBuildings.flatMap((building) => building.items.map((item) => item.id)))
+    return items.filter((item) => matched.has(item.id))
+  }, [items, inventoryBuildings])
+  const buildingItems = selectedBuilding
+    ? inventoryBuildings.find((building) => building.name === selectedBuilding)?.items ?? []
+    : labeledItems
 
   return (
-    <section className="w-full max-w-360 overflow-hidden rounded-xl border border-[#d6e0da] bg-white shadow-sm">
-      <header className="flex flex-col gap-3 border-b border-[#e1e8e4] px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-7">
+    <section className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white">
+      <header className="flex shrink-0 flex-col gap-2 border-b border-[#e1e8e4] px-5 py-3 sm:flex-row sm:items-end sm:justify-between sm:px-7">
         <div>
           <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">Farmingdale State College</p>
           <h1 className="mt-1 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">Found items by building</h1>
@@ -484,10 +571,9 @@ export default function CampusMap() {
         <p className="text-sm text-[#52615b]">{items.length} found {items.length === 1 ? "item" : "items"} on campus</p>
       </header>
 
-      <div className="grid min-h-155 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,0.65fr)] lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-1">
         <div
-          className="relative min-h-105 bg-[#e7eee9]"
-          style={{ height: "70vh", maxHeight: 760, minHeight: 420 }}
+          className="relative min-h-0 min-w-0 bg-[#e7eee9]"
         >
           <div
             className="absolute inset-0"
@@ -506,49 +592,45 @@ export default function CampusMap() {
           )}
           {!mapError && (
             <div className="pointer-events-none absolute bottom-4 left-4 rounded-md bg-white/95 px-3 py-2 text-xs font-semibold text-[#334155] shadow">
-              Click a campus building footprint to see reported items
+              Click a building label to see reported items
             </div>
           )}
         </div>
 
-        <aside className="flex min-h-90 flex-col border-t border-[#e1e8e4] lg:border-t-0 lg:border-l">
-          <div className="border-b border-[#e1e8e4] px-5 py-5">
-            <p className="text-xs font-bold tracking-[0.12em] text-[#74827c] uppercase">Selected building</p>
-            <h2 className="mt-1 font-['Outfit:Bold'] text-xl font-bold text-[#17212b]">{selectedBuilding || "Choose a building"}</h2>
-            {selectedBuilding && <p className="mt-1 text-sm text-[#64748b]">{buildingItems.length} matching {buildingItems.length === 1 ? "report" : "reports"}</p>}
-            {campusBuildings.length > 0 && (
+        <aside className="minimal-scrollbar flex min-h-0 flex-col overflow-y-auto overscroll-contain border-t border-[#e1e8e4] lg:border-t-0 lg:border-l">
+          <div className="shrink-0 border-b border-[#e1e8e4] px-5 py-5">
+            <p className="text-xs font-bold tracking-[0.12em] text-[#74827c] uppercase">Found inventory</p>
+            <h2 className="mt-1 font-['Outfit:Bold'] text-xl font-bold text-[#17212b]">{selectedBuilding || "All labeled buildings"}</h2>
+            <p className="mt-1 text-sm text-[#64748b]" aria-live="polite">
+              {isLoading ? "Loading inventory..." : loadError ? "Inventory unavailable" : `${buildingItems.length} found ${buildingItems.length === 1 ? "item" : "items"}`}
+            </p>
+            {inventoryBuildings.length > 0 && (
               <label className="mt-4 block text-xs font-semibold text-[#52615b]">
-                Or choose a building
+                Filter by building
                 <select
                   className="mt-1.5 h-10 w-full rounded-md border border-[#cbd8d2] bg-white px-3 text-sm text-[#17212b]"
-                  onChange={(event) => {
-                    const building = campusBuildings.find((entry) => entry.name === event.target.value)
-                    if (building) selectBuilding(building)
-                  }}
+                  onChange={(event) => setSelectedBuilding(event.target.value)}
                   value={selectedBuilding}
                 >
-                  <option value="">Select building</option>
-                  {campusBuildings.map((building) => (
+                  <option value="">All labeled buildings{!isLoading && !loadError ? ` (${labeledItems.length})` : ""}</option>
+                  {inventoryBuildings.map((building) => (
                     <option key={building.name} value={building.name}>
-                      {building.number ? `${building.number} · ` : ""}{building.name} ({building.grid})
+                      {building.name}{!isLoading && !loadError ? ` (${building.items.length})` : ""}
                     </option>
                   ))}
                 </select>
               </label>
             )}
+            <p className="mt-2 text-xs leading-5 text-[#64748b]">Items are grouped by where they were found. Choose a building here or click its map label.</p>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 p-4">
             {loadError ? (
               <p className="rounded-lg bg-red-50 p-4 text-sm text-red-800" role="alert">{loadError}</p>
             ) : isLoading ? (
               <p className="py-8 text-center text-sm text-[#64748b]">Loading found items…</p>
-            ) : !selectedBuilding ? (
-              <p className="py-8 text-center text-sm leading-6 text-[#64748b]">Select a green building on the map to inspect reported items.</p>
-            ) : selectedBuilding === "Unnamed building" ? (
-              <p className="py-8 text-center text-sm leading-6 text-[#64748b]">This footprint has no building label in the map data.</p>
             ) : buildingItems.length === 0 ? (
-              <p className="py-8 text-center text-sm leading-6 text-[#64748b]">No found items are listed for {selectedBuilding}.</p>
+              <p className="py-8 text-center text-sm leading-6 text-[#64748b]">{selectedBuilding ? `No found items are listed for ${selectedBuilding}.` : "No found inventory items match the labeled buildings."}</p>
             ) : (
               <ul className="space-y-3">
                 {buildingItems.map((item) => (
