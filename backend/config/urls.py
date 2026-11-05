@@ -18,10 +18,10 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from config.views import csrf_token, inventory_return
-from items.views import InventoryViewSet, ItemViewSet
+from items.views import InventoryViewSet, LostItemViewSet
 
 router = DefaultRouter()
-router.register("items", ItemViewSet)
+router.register("lost-items", LostItemViewSet, basename="lost-items")
 router.register("inventory", InventoryViewSet, basename="inventory")
 
 urlpatterns = [

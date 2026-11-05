@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react"
 import InventoryScreen from "./Inventory"
+import FoundItemReport from "./FoundItemReport"
+import LostItemReport from "./LostItemReport"
+import ReportsScreen from "./Reports"
 
 const assetPathPrefix = "/assets"
 const imgHomeIcon = `${assetPathPrefix}/6c43b.svg`
@@ -14,6 +17,8 @@ const imgBookmark = `${assetPathPrefix}/18d19.svg`
 const imgMessageCircle = `${assetPathPrefix}/611f4.svg`
 const imgCircleHelp = `${assetPathPrefix}/a0603.svg`
 const imgCircleX = `${assetPathPrefix}/85624.svg`
+const lostItemsApiUrl = `http://${window.location.hostname}:8000/api/lost-items/`
+const inventoryApiUrl = `http://${window.location.hostname}:8000/api/inventory/`
 
 type NavItem = {
   id: string
@@ -859,6 +864,67 @@ function LoginScreen({
 }
 
 function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
+  const [lostItemCount, setLostItemCount] = useState<number | null>(null)
+  const [foundItemCount, setFoundItemCount] = useState<number | null>(null)
+  const [lostItemsError, setLostItemsError] = useState<string | null>(null)
+  const [foundItemsError, setFoundItemsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadCount(
+      url: string,
+      setCount: (count: number) => void,
+      setError: (message: string) => void,
+    ) {
+      try {
+        const response = await fetch(url, {
+          headers: { Accept: "application/json" },
+          credentials: "include",
+          signal: controller.signal,
+        })
+        if (!response.ok) {
+          throw new Error(`Could not load item count (HTTP ${response.status}).`)
+        }
+
+        const payload: unknown = await response.json()
+        if (Array.isArray(payload)) {
+          setCount(payload.length)
+          return
+        }
+        if (typeof payload === "object" && payload !== null) {
+          if ("count" in payload && typeof payload.count === "number") {
+            setCount(payload.count)
+            return
+          }
+          if ("results" in payload && Array.isArray(payload.results)) {
+            setCount(payload.results.length)
+            return
+          }
+        }
+        throw new Error("The items API returned an unexpected response.")
+      } catch (loadError) {
+        if (loadError instanceof Error && loadError.name === "AbortError") {
+          return
+        }
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "An unexpected error occurred while loading item counts.",
+        )
+      }
+    }
+
+    void loadCount(
+      lostItemsApiUrl,
+      setLostItemCount,
+      setLostItemsError,
+    )
+    void loadCount(inventoryApiUrl, setFoundItemCount, setFoundItemsError)
+
+    return () => controller.abort()
+  }, [])
+
   return (
     <div className="w-full max-w-6xl space-y-6">
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#004f3a] via-[#006747] to-[#00a676] p-7 text-white shadow-xl shadow-emerald-950/10 sm:p-10">
@@ -896,12 +962,19 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2">
         {[
-          ["24", "Active reports", "Updated across campus"],
-          ["12", "Potential matches", "Ready to review"],
-          ["126", "Items reunited", "This semester"],
-        ].map(([value, label, detail]) => (
+          {
+            value: lostItemCount === null ? (lostItemsError ? "—" : "…") : lostItemCount,
+            label: "Lost items",
+            detail: lostItemsError ?? "Open lost reports",
+          },
+          {
+            value: foundItemCount === null ? (foundItemsError ? "—" : "…") : foundItemCount,
+            label: "Found items",
+            detail: foundItemsError ?? "Items in inventory",
+          },
+        ].map(({ value, label, detail }) => (
           <div
             className="rounded-2xl border border-[#dce9e3] bg-white p-5 shadow-sm"
             key={label}
@@ -1023,7 +1096,11 @@ const resolvedReports = [
   },
 ]
 
-function ResolvedReportsScreen() {
+function ResolvedReportsScreen({
+  onBrowseActiveReports,
+}: {
+  onBrowseActiveReports: () => void
+}) {
   const [filter, setFilter] = useState("All")
   const filters = ["All", "This week", "Lost items", "Found items"]
   const visibleReports = resolvedReports.filter((report) => {
@@ -1181,6 +1258,7 @@ function ResolvedReportsScreen() {
         </div>
         <button
           className="w-fit shrink-0 cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#00523a]"
+          onClick={onBrowseActiveReports}
           type="button"
         >
           Browse active reports
@@ -2259,16 +2337,18 @@ export default function App() {
         <main className="flex min-w-0 flex-1 items-start justify-center p-5 sm:p-8 lg:p-10">
           {activeItem === "home" ? (
             <HomeScreen onSelect={setActiveItem} />
-          ) : activeItem === "report-lost" || activeItem === "report-found" ? (
-            <ItemReportScreen
-              key={activeItem}
-              kind={activeItem === "report-lost" ? "lost" : "found"}
-              onDone={() => setActiveItem("home")}
-            />
           ) : activeItem === "inventory" ? (
             <InventoryScreen />
+          ) : activeItem === "report-lost" ? (
+            <LostItemReport />
+          ) : activeItem === "report-list" ? (
+            <ReportsScreen />
+          ) : activeItem === "report-found" ? (
+            <FoundItemReport onOpenInventory={() => setActiveItem("inventory")} />
           ) : activeItem === "recently-resolved" ? (
-            <ResolvedReportsScreen />
+            <ResolvedReportsScreen
+              onBrowseActiveReports={() => setActiveItem("report-list")}
+            />
           ) : activeItem === "settings" ? (
             <SettingsScreen
               darkMode={darkMode}
