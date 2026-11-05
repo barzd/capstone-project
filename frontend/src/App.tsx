@@ -17,6 +17,8 @@ const imgBookmark = `${assetPathPrefix}/18d19.svg`
 const imgMessageCircle = `${assetPathPrefix}/611f4.svg`
 const imgCircleHelp = `${assetPathPrefix}/a0603.svg`
 const imgCircleX = `${assetPathPrefix}/85624.svg`
+const lostItemsApiUrl = `http://${window.location.hostname}:8000/api/lost-items/`
+const inventoryApiUrl = `http://${window.location.hostname}:8000/api/inventory/`
 
 type NavItem = {
   id: string
@@ -705,6 +707,67 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 }
 
 function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
+  const [lostItemCount, setLostItemCount] = useState<number | null>(null)
+  const [foundItemCount, setFoundItemCount] = useState<number | null>(null)
+  const [lostItemsError, setLostItemsError] = useState<string | null>(null)
+  const [foundItemsError, setFoundItemsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadCount(
+      url: string,
+      setCount: (count: number) => void,
+      setError: (message: string) => void,
+    ) {
+      try {
+        const response = await fetch(url, {
+          headers: { Accept: "application/json" },
+          credentials: "include",
+          signal: controller.signal,
+        })
+        if (!response.ok) {
+          throw new Error(`Could not load item count (HTTP ${response.status}).`)
+        }
+
+        const payload: unknown = await response.json()
+        if (Array.isArray(payload)) {
+          setCount(payload.length)
+          return
+        }
+        if (typeof payload === "object" && payload !== null) {
+          if ("count" in payload && typeof payload.count === "number") {
+            setCount(payload.count)
+            return
+          }
+          if ("results" in payload && Array.isArray(payload.results)) {
+            setCount(payload.results.length)
+            return
+          }
+        }
+        throw new Error("The items API returned an unexpected response.")
+      } catch (loadError) {
+        if (loadError instanceof Error && loadError.name === "AbortError") {
+          return
+        }
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "An unexpected error occurred while loading item counts.",
+        )
+      }
+    }
+
+    void loadCount(
+      lostItemsApiUrl,
+      setLostItemCount,
+      setLostItemsError,
+    )
+    void loadCount(inventoryApiUrl, setFoundItemCount, setFoundItemsError)
+
+    return () => controller.abort()
+  }, [])
+
   return (
     <div className="w-full max-w-6xl space-y-6">
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#004f3a] via-[#006747] to-[#00a676] p-7 text-white shadow-xl shadow-emerald-950/10 sm:p-10">
@@ -742,12 +805,19 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2">
         {[
-          ["24", "Active reports", "Updated across campus"],
-          ["12", "Potential matches", "Ready to review"],
-          ["126", "Items reunited", "This semester"],
-        ].map(([value, label, detail]) => (
+          {
+            value: lostItemCount === null ? (lostItemsError ? "—" : "…") : lostItemCount,
+            label: "Lost items",
+            detail: lostItemsError ?? "Open lost reports",
+          },
+          {
+            value: foundItemCount === null ? (foundItemsError ? "—" : "…") : foundItemCount,
+            label: "Found items",
+            detail: foundItemsError ?? "Items in inventory",
+          },
+        ].map(({ value, label, detail }) => (
           <div
             className="rounded-2xl border border-[#dce9e3] bg-white p-5 shadow-sm"
             key={label}
