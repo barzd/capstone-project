@@ -2337,12 +2337,6 @@ export default function App() {
         <main className="flex min-w-0 flex-1 items-start justify-center p-5 sm:p-8 lg:p-10">
           {activeItem === "home" ? (
             <HomeScreen onSelect={setActiveItem} />
-          ) : activeItem === "report-lost" || activeItem === "report-found" ? (
-            <ItemReportScreen
-              key={activeItem}
-              kind={activeItem === "report-lost" ? "lost" : "found"}
-              onDone={() => setActiveItem("home")}
-            />
           ) : activeItem === "inventory" ? (
             <InventoryScreen />
           ) : activeItem === "report-lost" ? (
