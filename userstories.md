@@ -43,5 +43,5 @@ Guide verified owners through getting their item back.
 ## Epic 6: Staff Tools
 Give Lost & Found staff what they need to manage items efficiently.
 
-- **Staff Dashboard:** As a staff member, I want to view and manage lost item reports and claims, so that I can keep the lost and found system organized.
+- ~~**Staff Dashboard:** As a staff member, I want to view and manage lost item reports and claims, so that I can keep the lost and found system organized.~~
 - **Item Descriptions:** As a staff member, I want the system to suggest item descriptions and categories, so that I can add found items faster.
