@@ -12,6 +12,17 @@ import {
 } from "./reportOptions"
 
 const lostItemsApiUrl = `http://${window.location.hostname}:8000/api/lost-items/`
+const csrfApiUrl = `http://${window.location.hostname}:8000/api/auth/csrf/`
+
+// Reports are linked to the logged-in user, so requests must carry the Django
+// session cookie plus a CSRF token (the same pattern the login screen uses).
+async function getCsrfToken(): Promise<string> {
+  const response = await fetch(csrfApiUrl, { credentials: "include" })
+  if (!response.ok) throw new Error("Could not reach the server. Is the backend running?")
+  const payload = (await response.json()) as { csrfToken?: string }
+  if (!payload.csrfToken) throw new Error("The server did not return a CSRF token.")
+  return payload.csrfToken
+}
 
 function localDateValue(): string {
   const date = new Date()
@@ -53,14 +64,24 @@ export default function LostItemReport() {
     }
 
     try {
+      const csrfToken = await getCsrfToken()
       const response = await fetch(lostItemsApiUrl, {
         method: "POST",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify(item),
       })
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error(
+          "Your session has expired. Please log out, sign in again, and resubmit.",
+        )
+      }
+
       const payload: unknown = await response.json()
 
       if (!response.ok) {
