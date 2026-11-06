@@ -9,7 +9,7 @@ Let users securely access the system and keep their personal information protect
 
 - ~~**User Accounts:** As a student, I want to be able to create an account, so that I can submit and manage lost item reports.~~
 - **Password Recovery:** As a user, I want to reset my password if I forget it, so that I can regain access to my account.
-- **Privacy Protection:** As a student, I want my personal information to stay private, so that my contact details are not shown to everyone using the system.
+- ~~**Privacy Protection:** As a student, I want my personal information to stay private, so that my contact details are not shown to everyone using the system.~~
 
 ## Epic 2: Item Reporting
 Let users report lost and found items with enough detail to identify them.

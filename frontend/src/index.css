@@ -176,3 +176,27 @@
 .theme-dark .item-retrieved-button:hover {
   background-color: #065f46;
 }
+.theme-dark .home-hero-primary-button {
+  border: 1px solid #a7f3d0;
+  background-color: #d1fae5;
+  color: #064e3b;
+  box-shadow: 0 8px 20px rgb(2 44 34 / 35%);
+}
+
+.theme-dark .home-hero-primary-button:hover {
+  background-color: #a7f3d0;
+}
+
+.theme-dark .account-badge {
+  border-color: #34414c;
+  background-color: #1b2529;
+}
+
+.theme-dark .account-avatar {
+  background-color: #064e3b;
+  color: #d1fae5;
+}
+
+.theme-dark .account-username {
+  color: #f1f5f3;
+}

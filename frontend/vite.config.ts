@@ -32,7 +32,7 @@ react(),
       },
     },
     server: {
-      host: 'localhost', // <-- Change this to force standard local HTTP
+      host: '127.0.0.1',
       port: parseInt(process.env.PORT || '5173'),
       strictPort: true,
       watch: {
@@ -42,7 +42,7 @@ react(),
       },
     },
     preview: {
-      host: 'localhost', // <-- Change this here as well
+      host: '127.0.0.1',
       port: parseInt(process.env.PORT || '5173'),
     },
   }
