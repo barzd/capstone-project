@@ -14,11 +14,13 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from config.views import csrf_token, inventory_return
 from items.views import InventoryViewSet, LostItemViewSet
+from . import password_reset, reset_pages
 
 router = DefaultRouter()
 router.register("lost-items", LostItemViewSet, basename="lost-items")
@@ -27,9 +29,19 @@ router.register("inventory", InventoryViewSet, basename="inventory")
 urlpatterns = [
     path("inventory-return/", inventory_return, name="inventory-return"),
     path("admin/", admin.site.urls),
+
     path("accounts/", include("allauth.urls")),
-    path("api/auth/csrf/", csrf_token, name="csrf-token"),
     path("api/", include(router.urls)),
+
+    path("api/auth/csrf/", csrf_token, name="csrf-token"),
     path("api/auth/", include("dj_rest_auth.urls")),
     path("api/auth/registration/", include("dj_rest_auth.registration.urls")),
+
+    # Forgot password API
+    path("api/forgot-password/", password_reset.forgot_password, name="forgot_password"),
+    path("api/reset-password/", password_reset.reset_password, name="reset_password"),
+
+    # Password reset pages
+    path("forgot-password/", reset_pages.forgot_page, name="forgot_page"),
+    path("reset-password/", reset_pages.reset_page, name="reset_page"),
 ]
