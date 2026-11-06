@@ -422,7 +422,7 @@ const pageContent: Record<string, PageContent> = {
   },
 }
 
-function TopBar() {
+function TopBar({ username }: { username: string }) {
   return (
     <header className="shrink-0 bg-white" data-node-id="18:9">
       <div className="h-[5px] bg-[#006747]" data-node-id="18:10" />
@@ -457,10 +457,21 @@ function TopBar() {
         </div>
 
         <div
-          className="size-8 shrink-0"
-          aria-hidden="true"
+          aria-label={`Signed in as ${username}`}
+          className="account-badge flex max-w-[9rem] shrink-0 items-center gap-2 rounded-full border border-[#dce9e3] bg-[#f8faf9] py-1.5 pr-3 pl-1.5 sm:max-w-[12rem]"
           data-node-id="18:20"
-        />
+          title={username}
+        >
+          <span
+            aria-hidden="true"
+            className="account-avatar flex size-7 shrink-0 items-center justify-center rounded-full bg-[#d1fae5] font-['Figtree:SemiBold'] text-xs font-semibold text-[#006747]"
+          >
+            {username.charAt(0).toUpperCase()}
+          </span>
+          <span className="account-username truncate font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]">
+            {username}
+          </span>
+        </div>
       </div>
       <div className="h-px bg-[#d7dfda]" data-node-id="18:21" />
     </header>
@@ -944,7 +955,7 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <button
-              className="cursor-pointer rounded-xl bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] shadow-lg transition-transform hover:-translate-y-0.5"
+              className="home-hero-primary-button cursor-pointer rounded-xl bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] shadow-lg transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               onClick={() => onSelect("report-lost")}
               type="button"
             >
@@ -2215,6 +2226,7 @@ export default function App() {
   const returningFromAdmin =
     new URLSearchParams(window.location.search).get("admin_inventory") === "1"
   const [isLoggedIn, setIsLoggedIn] = useState(returningFromAdmin)
+  const [username, setUsername] = useState<string | null>(null)
   const [authError, setAuthError] = useState("")
   const [activeItem, setActiveItem] = useState(
     returningFromAdmin ? "inventory" : "home",
@@ -2227,34 +2239,50 @@ export default function App() {
     return saved === "small" || saved === "large" ? saved : "default"
   })
 
+  async function loadCurrentUsername(signal?: AbortSignal): Promise<string> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/user/`, {
+      headers: { Accept: "application/json" },
+      credentials: "include",
+      signal,
+    })
+    if (!response.ok) {
+      throw new Error(`Django could not load the current user (HTTP ${response.status}).`)
+    }
+
+    const user: unknown = await response.json()
+    if (
+      typeof user !== "object" ||
+      user === null ||
+      !("username" in user) ||
+      typeof user.username !== "string" ||
+      user.username.trim() === ""
+    ) {
+      throw new Error("Django returned account details without a username.")
+    }
+    return user.username
+  }
+
   useEffect(() => {
     const controller = new AbortController()
 
     async function checkDjangoSession() {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/user/`, {
-          headers: { Accept: "application/json" },
-          credentials: "include",
-          signal: controller.signal,
-        })
-
-        if (!response.ok) {
-          if (authReturn === "google") {
-            setAuthError(
-              response.status === 401 || response.status === 403
-                ? "Django did not receive the Google session. Use 127.0.0.1 for the app and try again."
-                : `Django could not verify the session (HTTP ${response.status}).`,
-            )
-          }
-          return
-        }
-
+        const currentUsername = await loadCurrentUsername(controller.signal)
+        setUsername(currentUsername)
         setIsLoggedIn(true)
         if (authReturn === "google") setActiveItem("home")
-      } catch {
+      } catch (error) {
         if (controller.signal.aborted) return
         if (authReturn === "google") {
-          setAuthError("Could not reach Django to verify your Google sign-in.")
+          setAuthError(
+            error instanceof Error && error.message.includes("HTTP 401")
+              ? "Django did not receive the Google session. Use 127.0.0.1 for the app and try again."
+              : error instanceof Error && error.message.includes("HTTP 403")
+                ? "Django did not receive the Google session. Use 127.0.0.1 for the app and try again."
+                : "Could not verify your Google sign-in with Django.",
+          )
+        } else if (returningFromAdmin) {
+          setUsername("Username unavailable")
         }
       } finally {
         if (authReturn === "google" && !controller.signal.aborted) {
@@ -2267,7 +2295,7 @@ export default function App() {
 
     void checkDjangoSession()
     return () => controller.abort()
-  }, [authReturn])
+  }, [authReturn, returningFromAdmin])
 
   useEffect(() => {
     localStorage.setItem("fsc-dark-mode", String(darkMode))
@@ -2295,7 +2323,12 @@ export default function App() {
     return (
       <LoginScreen
         error={authError}
-        onAuthenticated={() => setIsLoggedIn(true)}
+        onAuthenticated={() => {
+          setIsLoggedIn(true)
+          void loadCurrentUsername()
+            .then(setUsername)
+            .catch(() => setUsername("Username unavailable"))
+        }}
       />
     )
   }
@@ -2306,7 +2339,7 @@ export default function App() {
         darkMode ? "theme-dark" : ""
       }`}
     >
-      <TopBar />
+      <TopBar username={username ?? "Loading username…"} />
       <div className="flex flex-1 flex-col md:flex-row">
         <Sidebar
           activeItem={activeItem}
@@ -2330,6 +2363,7 @@ export default function App() {
               setAuthError("Could not reach Django to end the session.")
             }
 
+            setUsername(null)
             setIsLoggedIn(false)
           }}
           onSelect={setActiveItem}
