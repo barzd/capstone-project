@@ -1,4 +1,15 @@
 import { useState, type FormEvent } from "react"
+import ChoiceField, {
+  LocationDetailsField,
+  readChoice,
+  readLocation,
+} from "./ChoiceField"
+import {
+  CAMPUS_LOCATIONS,
+  ITEM_CATEGORIES,
+  ITEM_COLORS,
+  STORAGE_LOCATIONS,
+} from "./reportOptions"
 
 const inventoryApiUrl = `http://${window.location.hostname}:8000/api/inventory/`
 
@@ -23,13 +34,14 @@ function FoundItemReport({
 }: {
   onOpenInventory: () => void
 }) {
+  // Changing the key after a successful submit clears every field.
+  const [formKey, setFormKey] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submittedItemId, setSubmittedItemId] = useState<string | null>(null)
 
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = event.currentTarget
     setIsSubmitting(true)
     setError(null)
     setSubmittedItemId(null)
@@ -38,12 +50,12 @@ function FoundItemReport({
     const item = {
       title: String(formData.get("title") ?? "").trim(),
       description: String(formData.get("description") ?? "").trim(),
-      category: String(formData.get("category") ?? "").trim(),
-      color: String(formData.get("color") ?? "").trim(),
-      location: String(formData.get("location") ?? "").trim(),
+      category: readChoice(formData, "category"),
+      color: readChoice(formData, "color"),
+      location: readLocation(formData),
       status: "found",
       date: String(formData.get("date") ?? ""),
-      storage_location: String(formData.get("storage_location") ?? "").trim(),
+      storage_location: readChoice(formData, "storage_location"),
     }
 
     try {
@@ -73,7 +85,7 @@ function FoundItemReport({
       }
 
       setSubmittedItemId(String(payload.id))
-      form.reset()
+      setFormKey((key) => key + 1)
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -126,6 +138,7 @@ function FoundItemReport({
 
       <form
         className="space-y-5 rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8"
+        key={formKey}
         onSubmit={submitReport}
       >
         <div className="grid gap-5 sm:grid-cols-2">
@@ -140,35 +153,35 @@ function FoundItemReport({
               required
             />
           </label>
-          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
-            Category
-            <input
-              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
-              maxLength={100}
-              name="category"
-              placeholder="e.g. Accessories"
-              required
-            />
-          </label>
-          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
-            Color
-            <input
-              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
-              maxLength={50}
-              name="color"
-              placeholder="Optional"
-            />
-          </label>
-          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
-            Location found
-            <input
-              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
-              maxLength={200}
-              name="location"
-              placeholder="e.g. Library entrance"
-              required
-            />
-          </label>
+          <ChoiceField
+            label="Category"
+            name="category"
+            options={ITEM_CATEGORIES}
+            otherLabel="Specify category"
+            otherPlaceholder="Enter a category"
+            placeholder="Select a category"
+            required
+          />
+          <ChoiceField
+            label="Color"
+            name="color"
+            options={ITEM_COLORS}
+            otherLabel="Specify color"
+            otherMaxLength={50}
+            otherPlaceholder="e.g. Navy and white"
+            placeholder="Select a color (optional)"
+          />
+          <ChoiceField
+            label="Location found"
+            name="location"
+            options={CAMPUS_LOCATIONS}
+            otherLabel="Specify location"
+            otherMaxLength={70}
+            otherPlaceholder="e.g. Bus stop on Melville Road"
+            placeholder="Select a campus location"
+            required
+          />
+          <LocationDetailsField />
           <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
             Date found
             <input
@@ -179,15 +192,14 @@ function FoundItemReport({
               type="date"
             />
           </label>
-          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
-            Storage location
-            <input
-              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
-              maxLength={200}
-              name="storage_location"
-              placeholder="Optional"
-            />
-          </label>
+          <ChoiceField
+            label="Storage location"
+            name="storage_location"
+            options={STORAGE_LOCATIONS}
+            otherLabel="Specify storage location"
+            otherPlaceholder="e.g. Lupton Hall front office"
+            placeholder="Select where it's kept (optional)"
+          />
         </div>
         <label className="block space-y-1.5 text-sm font-semibold text-[#17212b]">
           Description

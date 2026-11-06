@@ -1,4 +1,15 @@
 import { useState, type FormEvent } from "react"
+import ChoiceField, {
+  LocationDetailsField,
+  readChoice,
+  readLocation,
+} from "./ChoiceField"
+import {
+  CAMPUS_LOCATIONS,
+  ITEM_CATEGORIES,
+  ITEM_COLORS,
+  NOT_SURE_OPTION,
+} from "./reportOptions"
 
 const lostItemsApiUrl = `http://${window.location.hostname}:8000/api/lost-items/`
 
@@ -19,28 +30,25 @@ function getErrorMessage(payload: unknown, status: number): string {
 }
 
 export default function LostItemReport() {
-  const [selectedCategory, setSelectedCategory] = useState("")
+  // Changing the key after a successful submit clears every field.
+  const [formKey, setFormKey] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submittedItemId, setSubmittedItemId] = useState<string | null>(null)
 
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = event.currentTarget
     setIsSubmitting(true)
     setError(null)
     setSubmittedItemId(null)
 
-    const formData = new FormData(form)
+    const formData = new FormData(event.currentTarget)
     const item = {
       title: String(formData.get("title") ?? "").trim(),
       description: String(formData.get("description") ?? "").trim(),
-      category:
-        selectedCategory === "More"
-          ? String(formData.get("custom_category") ?? "").trim()
-          : selectedCategory,
-      color: String(formData.get("color") ?? "").trim(),
-      location: String(formData.get("location") ?? "").trim(),
+      category: readChoice(formData, "category"),
+      color: readChoice(formData, "color"),
+      location: readLocation(formData),
       date: String(formData.get("date") ?? ""),
     }
 
@@ -71,8 +79,7 @@ export default function LostItemReport() {
       }
 
       setSubmittedItemId(String(payload.id))
-      form.reset()
-      setSelectedCategory("")
+      setFormKey((key) => key + 1)
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -118,6 +125,7 @@ export default function LostItemReport() {
 
       <form
         className="space-y-5 rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8"
+        key={formKey}
         onSubmit={submitReport}
       >
         <div className="grid gap-5 sm:grid-cols-2">
@@ -132,64 +140,36 @@ export default function LostItemReport() {
               required
             />
           </label>
-          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
-            Category
-            <select
-              className="lost-category-select w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
-              onChange={(event) => setSelectedCategory(event.target.value)}
-              value={selectedCategory}
-              name="category"
-              required
-            >
-              <option disabled value="">
-                Select a category
-              </option>
-              <option value="Accessories">Accessories</option>
-              <option value="Bags & Backpacks">Bags &amp; Backpacks</option>
-              <option value="Books & School Supplies">
-                Books &amp; School Supplies
-              </option>
-              <option value="Clothing">Clothing</option>
-              <option value="Electronics">Electronics</option>
-              <option value="ID & Cards">ID &amp; Cards</option>
-              <option value="Keys">Keys</option>
-              <option value="Jewelry">Jewelry</option>
-              <option value="Water Bottles">Water Bottles</option>
-              <option value="More">More</option>
-            </select>
-          </label>
-          {selectedCategory === "More" && (
-            <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
-              Specify category
-              <input
-                autoComplete="off"
-                className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
-                maxLength={100}
-                name="custom_category"
-                placeholder="Enter a category"
-                required
-              />
-            </label>
-          )}
-          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
-            Color
-            <input
-              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
-              maxLength={50}
-              name="color"
-              placeholder="Optional"
-            />
-          </label>
-          <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
-            Location last seen
-            <input
-              className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
-              maxLength={200}
-              name="location"
-              placeholder="e.g. Library entrance"
-              required
-            />
-          </label>
+          <ChoiceField
+            label="Category"
+            name="category"
+            options={ITEM_CATEGORIES}
+            otherLabel="Specify category"
+            otherPlaceholder="Enter a category"
+            placeholder="Select a category"
+            required
+          />
+          <ChoiceField
+            label="Color"
+            name="color"
+            options={ITEM_COLORS}
+            otherLabel="Specify color"
+            otherMaxLength={50}
+            otherPlaceholder="e.g. Navy and white"
+            placeholder="Select a color (optional)"
+          />
+          <ChoiceField
+            extraOptions={[NOT_SURE_OPTION]}
+            label="Location last seen"
+            name="location"
+            options={CAMPUS_LOCATIONS}
+            otherLabel="Specify location"
+            otherMaxLength={70}
+            otherPlaceholder="e.g. Bus stop on Melville Road"
+            placeholder="Select a campus location"
+            required
+          />
+          <LocationDetailsField />
           <label className="space-y-1.5 text-sm font-semibold text-[#17212b]">
             Date lost
             <input
