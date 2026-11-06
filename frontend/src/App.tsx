@@ -792,7 +792,16 @@ function LoginScreen({
               value={password}
             />
           </div>
-
+                      {!isRegistering && (
+            <div className="mt-2 text-right">
+              <a
+                href={`${API_BASE_URL}/forgot-password/`}
+                className="font-['Figtree:Medium'] text-xs font-medium text-[#006747] hover:underline"
+              >
+                Forgot Password?
+              </a>
+            </div>
+          )}
           {isRegistering && (
             <div className="mt-4">
               <label
