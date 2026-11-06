@@ -43,7 +43,7 @@
 }
 
 .theme-dark {
-  background-color: #10171d;
+  background-color: #0b0f14;
   color-scheme: dark;
 }
 
@@ -71,7 +71,7 @@
 }
 
 .theme-dark main {
-  background-color: #10171d;
+  background-color: #0b0f14;
 }
 
 .theme-dark .site-title {
@@ -176,7 +176,6 @@
 .theme-dark .item-retrieved-button:hover {
   background-color: #065f46;
 }
-
 .theme-dark .home-hero-primary-button {
   border: 1px solid #a7f3d0;
   background-color: #d1fae5;
