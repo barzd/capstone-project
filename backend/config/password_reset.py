@@ -38,22 +38,19 @@ def _frontend_url():
         )
         port = os.environ.get("FRONTEND_PORT", "5173")
         return f"https://{codespace}-{port}.{domain}"
-    return "http://localhost:5173"
+    # The app must be opened on 127.0.0.1 so login cookies are shared.
+    return "http://127.0.0.1:5173"
 
 
 def _connection():
-    host = os.environ.get("EMAIL_HOST")
-    if host:
-        return get_connection(
-            backend="django.core.mail.backends.smtp.EmailBackend",
-            host=host,
-            port=int(os.environ.get("EMAIL_PORT", "587")),
-            username=os.environ.get("EMAIL_HOST_USER", ""),
-            password=os.environ.get("EMAIL_HOST_PASSWORD", ""),
-            use_tls=True,
-        )
-    # Development default: print the email in the runserver terminal.
-    return get_connection(backend="django.core.mail.backends.console.EmailBackend")
+    return get_connection(
+        backend="django.core.mail.backends.smtp.EmailBackend",
+        host=os.environ["EMAIL_HOST"],
+        port=int(os.environ.get("EMAIL_PORT", "587")),
+        username=os.environ.get("EMAIL_HOST_USER", ""),
+        password=os.environ.get("EMAIL_HOST_PASSWORD", ""),
+        use_tls=True,
+    )
 
 
 @csrf_exempt
@@ -67,10 +64,23 @@ def forgot_password(request):
     )
     if user:
         site = os.environ.get("SITE_NAME", "our site")
-        path = os.environ.get("FRONTEND_RESET_PATH", "/")
         uid = urlsafe_base64_encode(force_bytes(str(user.pk)))
         token = default_token_generator.make_token(user)
-        link = f"{_frontend_url()}{path}?uid={uid}&token={token}"
+        # The "Set a new password" page is served by this backend, so build the
+        # link from the address this request came in on. Works locally and in
+        # Codespaces without any extra settings.
+        link = request.build_absolute_uri(
+            f"/reset-password/?uid={uid}&token={token}"
+        )
+        if not os.environ.get("EMAIL_HOST"):
+            # Testing mode (no email settings): don't send an email, just print
+            # the link in the runserver terminal so it can be copied.
+            print(
+                f"\n[Testing mode - no email sent] Password reset link for "
+                f"{user.get_username()}:\n{link}\n",
+                flush=True,
+            )
+            return JsonResponse({"message": GENERIC_MESSAGE})
         try:
             EmailMessage(
                 subject=f"Your {site} password reset",

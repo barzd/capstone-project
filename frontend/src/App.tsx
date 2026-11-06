@@ -784,7 +784,7 @@ function LoginScreen({
                       {!isRegistering && (
             <div className="mt-2 text-right">
               <a
-                href="https://curly-garbanzo-697pjrg5xppq2596x-8000.app.github.dev/forgot-password/"
+                href={`${API_BASE_URL}/forgot-password/`}
                 className="font-['Figtree:Medium'] text-xs font-medium text-[#006747] hover:underline"
               >
                 Forgot Password?

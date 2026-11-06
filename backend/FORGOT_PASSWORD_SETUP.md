@@ -9,21 +9,27 @@ The project includes a Forgot Password feature that allows users to reset their 
 4. The user opens the reset link and enters a new password.
 5. After successfully changing the password, they are redirected to the login page.
 
-### Email Configuration
+### Testing without email (default)
 
-The backend uses Gmail SMTP to send password reset emails.
+If `EMAIL_HOST` is not set, no email is sent. Instead, the reset link is printed
+in the terminal running `python manage.py runserver`, under
+`[Testing mode - no email sent]`. Copy it into your browser to finish the reset. **IT IS THE FIRST LINK, NOT THE SECOND ONE. THIS ONLY APPEARS FOR TESTING PURPOSES**
 
-Add the following variables to your backend `.env` file:
+### Email Configuration (optional)
+
+To send real emails through Gmail SMTP, add these variables to your backend
+`.env` file:
 
 ```env
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_HOST_USER=your-email@gmail.com
 EMAIL_HOST_PASSWORD=your-gmail-app-password
-FRONTEND_URL=your-backend-url
-FRONTEND_RESET_PATH=/reset-password/
 SITE_NAME=Lost and Found
 ```
+
+Optional: set `FRONTEND_URL` to the address of the React app (default
+`http://127.0.0.1:5173`). Users are sent there after resetting their password.
 
 **Important:**
 - Use a Gmail App Password, not your normal Gmail password.

@@ -1,5 +1,9 @@
+import json
+
 from django.http import HttpResponse
 from django.views.decorators.http import require_GET
+
+from .password_reset import _frontend_url
 
 HEAD = """<!doctype html>
 <html lang="en">
@@ -94,8 +98,7 @@ document.getElementById("f").addEventListener("submit", async function (e) {
   msg.textContent = "Password updated! Redirecting to login...";
 
   setTimeout(function () {
-    window.location.href =
-      "https://curly-garbanzo-697pjrg5xppq2596x-5173.app.github.dev/";
+    window.location.href = __LOGIN_URL__;
   }, 2000);
 } else {
   msg.className = "err";
@@ -119,4 +122,7 @@ def forgot_page(request):
 
 @require_GET
 def reset_page(request):
-    return HttpResponse(HEAD + RESET_BODY, content_type="text/html")
+    # Send the user back to the app's login screen after a successful reset.
+    login_url = json.dumps(_frontend_url() + "/").replace("</", "<\\/")
+    body = RESET_BODY.replace("__LOGIN_URL__", login_url)
+    return HttpResponse(HEAD + body, content_type="text/html")
