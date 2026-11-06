@@ -1,4 +1,5 @@
 
+from django.conf import settings
 from django.db import models
 
 
@@ -34,6 +35,17 @@ class Item(models.Model):
     inventory_date = models.DateField(
         null=True,
         blank=True,
+    )
+
+    # Who submitted the report. Set by the server from the logged-in user and
+    # never returned by the public APIs (see serializers.py), so students'
+    # personal details stay private. Only superusers can see it.
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reported_items",
     )
 
     def __str__(self):
