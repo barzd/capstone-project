@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-const imgPackageCheck = "/assets/c05e7.svg"
+const imgPackageCheck = `${import.meta.env.BASE_URL}assets/c05e7.svg`
 
 const inventoryApiUrl = `http://${window.location.hostname}:8000/api/inventory/`
 const lostItemsApiUrl = `http://${window.location.hostname}:8000/api/lost-items/`

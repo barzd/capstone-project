@@ -4,7 +4,7 @@ import FoundItemReport from "./FoundItemReport"
 import LostItemReport from "./LostItemReport"
 import ReportsScreen from "./Reports"
 
-const assetPathPrefix = "/assets"
+const assetPathPrefix = `${import.meta.env.BASE_URL}assets`
 const imgHomeIcon = `${assetPathPrefix}/6c43b.svg`
 const imgMapPinCheck = `${assetPathPrefix}/3ce53.svg`
 const imgMapPinCheck1 = `${assetPathPrefix}/64aaa.svg`
@@ -706,7 +706,7 @@ function LoginScreen({
   return (
     <main
       className="relative flex min-h-screen items-center justify-center bg-cover bg-center px-5 py-10"
-      style={{ backgroundImage: "url('/assets/fsc-campus-login.jpg')" }}
+      style={{ backgroundImage: `url('${assetPathPrefix}/fsc-campus-login.jpg')` }}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/5 via-transparent to-emerald-950/35" />
       <section
