@@ -236,6 +236,8 @@ Generate a new Django secret key with:
 python -c "import secrets; print(secrets.token_urlsafe(50))"
 ```
 
+**A .env file containing a database password was accidentally committed on Nov 3 (f258f02) and removed in the next commit. That password has been changed in MongoDB Atlas, so the copy in the history no longer works. The old Django SECRET_KEY was also replaced.**
+
 ---
 
 ## Branch Protection
