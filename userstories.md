@@ -45,3 +45,8 @@ Give Lost & Found staff what they need to manage items efficiently.
 
 - ~~**Staff Dashboard:** As a staff member, I want to view and manage lost item reports and claims, so that I can keep the lost and found system organized.~~
 - **Item Descriptions:** As a staff member, I want the system to suggest item descriptions and categories, so that I can add found items faster.
+
+## Epic 7: Interactive Campus Map
+Help students easily locate lost and found items across campus.
+
+- **Campus Map**: As a student, I want to view an interactive campus map showing where items were lost or found, so that I can identify possible locations of my missing item more easily.
