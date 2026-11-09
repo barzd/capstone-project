@@ -170,7 +170,7 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-    deploy:
+  deploy:
     name: Deploy
     needs: test
     # Only deploy merged code on main, never pull requests.
