@@ -1,8 +1,15 @@
 import { lazy, Suspense, useEffect, useState } from "react"
 import InventoryScreen from "./Inventory"
+import { campusLocations } from "./campus-building-labels"
+<<<<<<< HEAD
 const CampusMap = lazy(() => import("./CampusMap"))
+=======
+import FoundItemReport from "./FoundItemReport"
+import LostItemReport from "./LostItemReport"
+import ReportsScreen from "./Reports"
+>>>>>>> 09c5e22900bfb485f2597302e23165265c7e1df0
 
-const assetPathPrefix = "/assets"
+const assetPathPrefix = `${import.meta.env.BASE_URL}assets`
 const imgHomeIcon = `${assetPathPrefix}/6c43b.svg`
 const imgMapPinCheck = `${assetPathPrefix}/3ce53.svg`
 const imgMapPinCheck1 = `${assetPathPrefix}/64aaa.svg`
@@ -15,6 +22,8 @@ const imgBookmark = `${assetPathPrefix}/18d19.svg`
 const imgMessageCircle = `${assetPathPrefix}/611f4.svg`
 const imgCircleHelp = `${assetPathPrefix}/a0603.svg`
 const imgCircleX = `${assetPathPrefix}/85624.svg`
+const lostItemsApiUrl = `http://${window.location.hostname}:8000/api/lost-items/`
+const inventoryApiUrl = `http://${window.location.hostname}:8000/api/inventory/`
 
 type NavItem = {
   id: string
@@ -418,6 +427,7 @@ const pageContent: Record<string, PageContent> = {
   },
 }
 
+<<<<<<< HEAD
 const persistentPageIds = new Set([
   "home",
   "report-lost",
@@ -429,6 +439,9 @@ const persistentPageIds = new Set([
 ])
 
 function TopBar() {
+=======
+function TopBar({ username }: { username: string }) {
+>>>>>>> 09c5e22900bfb485f2597302e23165265c7e1df0
   return (
     <header className="shrink-0 bg-white" data-node-id="18:9">
       <div className="h-[5px] bg-[#006747]" data-node-id="18:10" />
@@ -463,10 +476,21 @@ function TopBar() {
         </div>
 
         <div
-          className="size-8 shrink-0"
-          aria-hidden="true"
+          aria-label={`Signed in as ${username}`}
+          className="account-badge flex max-w-[9rem] shrink-0 items-center gap-2 rounded-full border border-[#dce9e3] bg-[#f8faf9] py-1.5 pr-3 pl-1.5 sm:max-w-[12rem]"
           data-node-id="18:20"
-        />
+          title={username}
+        >
+          <span
+            aria-hidden="true"
+            className="account-avatar flex size-7 shrink-0 items-center justify-center rounded-full bg-[#d1fae5] font-['Figtree:SemiBold'] text-xs font-semibold text-[#006747]"
+          >
+            {username.charAt(0).toUpperCase()}
+          </span>
+          <span className="account-username truncate font-['Figtree:SemiBold'] text-xs font-semibold text-[#17212b]">
+            {username}
+          </span>
+        </div>
       </div>
       <div className="h-px bg-[#d7dfda]" data-node-id="18:21" />
     </header>
@@ -701,7 +725,7 @@ function LoginScreen({
   return (
     <main
       className="relative flex min-h-screen items-center justify-center bg-cover bg-center px-5 py-10"
-      style={{ backgroundImage: "url('/assets/fsc-campus-login.jpg')" }}
+      style={{ backgroundImage: `url('${assetPathPrefix}/fsc-campus-login.jpg')` }}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/5 via-transparent to-emerald-950/35" />
       <section
@@ -787,7 +811,16 @@ function LoginScreen({
               value={password}
             />
           </div>
-
+                      {!isRegistering && (
+            <div className="mt-2 text-right">
+              <a
+                href={`${API_BASE_URL}/forgot-password/`}
+                className="font-['Figtree:Medium'] text-xs font-medium text-[#006747] hover:underline"
+              >
+                Forgot Password?
+              </a>
+            </div>
+          )}
           {isRegistering && (
             <div className="mt-4">
               <label
@@ -870,6 +903,67 @@ function LoginScreen({
 }
 
 function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
+  const [lostItemCount, setLostItemCount] = useState<number | null>(null)
+  const [foundItemCount, setFoundItemCount] = useState<number | null>(null)
+  const [lostItemsError, setLostItemsError] = useState<string | null>(null)
+  const [foundItemsError, setFoundItemsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadCount(
+      url: string,
+      setCount: (count: number) => void,
+      setError: (message: string) => void,
+    ) {
+      try {
+        const response = await fetch(url, {
+          headers: { Accept: "application/json" },
+          credentials: "include",
+          signal: controller.signal,
+        })
+        if (!response.ok) {
+          throw new Error(`Could not load item count (HTTP ${response.status}).`)
+        }
+
+        const payload: unknown = await response.json()
+        if (Array.isArray(payload)) {
+          setCount(payload.length)
+          return
+        }
+        if (typeof payload === "object" && payload !== null) {
+          if ("count" in payload && typeof payload.count === "number") {
+            setCount(payload.count)
+            return
+          }
+          if ("results" in payload && Array.isArray(payload.results)) {
+            setCount(payload.results.length)
+            return
+          }
+        }
+        throw new Error("The items API returned an unexpected response.")
+      } catch (loadError) {
+        if (loadError instanceof Error && loadError.name === "AbortError") {
+          return
+        }
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "An unexpected error occurred while loading item counts.",
+        )
+      }
+    }
+
+    void loadCount(
+      lostItemsApiUrl,
+      setLostItemCount,
+      setLostItemsError,
+    )
+    void loadCount(inventoryApiUrl, setFoundItemCount, setFoundItemsError)
+
+    return () => controller.abort()
+  }, [])
+
   return (
     <div className="w-full max-w-6xl space-y-6">
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#004f3a] via-[#006747] to-[#00a676] p-7 text-white shadow-xl shadow-emerald-950/10 sm:p-10">
@@ -889,7 +983,7 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <button
-              className="cursor-pointer rounded-xl bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] shadow-lg transition-transform hover:-translate-y-0.5"
+              className="home-hero-primary-button cursor-pointer rounded-xl bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] shadow-lg transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               onClick={() => onSelect("report-lost")}
               type="button"
             >
@@ -907,12 +1001,19 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2">
         {[
-          ["24", "Active reports", "Updated across campus"],
-          ["12", "Potential matches", "Ready to review"],
-          ["126", "Items reunited", "This semester"],
-        ].map(([value, label, detail]) => (
+          {
+            value: lostItemCount === null ? (lostItemsError ? "—" : "…") : lostItemCount,
+            label: "Lost items",
+            detail: lostItemsError ?? "Open lost reports",
+          },
+          {
+            value: foundItemCount === null ? (foundItemsError ? "—" : "…") : foundItemCount,
+            label: "Found items",
+            detail: foundItemsError ?? "Items in inventory",
+          },
+        ].map(({ value, label, detail }) => (
           <div
             className="rounded-2xl border border-[#dce9e3] bg-white p-5 shadow-sm"
             key={label}
@@ -1034,7 +1135,11 @@ const resolvedReports = [
   },
 ]
 
-function ResolvedReportsScreen() {
+function ResolvedReportsScreen({
+  onBrowseActiveReports,
+}: {
+  onBrowseActiveReports: () => void
+}) {
   const [filter, setFilter] = useState("All")
   const filters = ["All", "This week", "Lost items", "Found items"]
   const visibleReports = resolvedReports.filter((report) => {
@@ -1192,6 +1297,7 @@ function ResolvedReportsScreen() {
         </div>
         <button
           className="w-fit shrink-0 cursor-pointer rounded-xl bg-[#006747] px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#00523a]"
+          onClick={onBrowseActiveReports}
           type="button"
         >
           Browse active reports
@@ -1473,22 +1579,6 @@ const itemCategories = [
   "Water bottle",
   "Books / school supplies",
   "Jewelry / accessories",
-  "Other",
-]
-
-const campusLocations = [
-  "Campus Center",
-  "Greenley Library",
-  "Nold Athletic Complex",
-  "Laffin Hall",
-  "Lupton Hall",
-  "Whitman Hall",
-  "Hale Hall",
-  "Knapp Hall",
-  "Thompson Hall",
-  "Roosevelt Hall",
-  "Parking lot",
-  "Outdoors / walkway",
   "Other",
 ]
 
@@ -2148,6 +2238,7 @@ export default function App() {
   const returningFromAdmin =
     new URLSearchParams(window.location.search).get("admin_inventory") === "1"
   const [isLoggedIn, setIsLoggedIn] = useState(returningFromAdmin)
+  const [username, setUsername] = useState<string | null>(null)
   const [authError, setAuthError] = useState("")
   const [activeItem, setActiveItem] = useState(() => {
     if (returningFromAdmin) return "inventory"
@@ -2162,34 +2253,50 @@ export default function App() {
     return saved === "small" || saved === "large" ? saved : "default"
   })
 
+  async function loadCurrentUsername(signal?: AbortSignal): Promise<string> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/user/`, {
+      headers: { Accept: "application/json" },
+      credentials: "include",
+      signal,
+    })
+    if (!response.ok) {
+      throw new Error(`Django could not load the current user (HTTP ${response.status}).`)
+    }
+
+    const user: unknown = await response.json()
+    if (
+      typeof user !== "object" ||
+      user === null ||
+      !("username" in user) ||
+      typeof user.username !== "string" ||
+      user.username.trim() === ""
+    ) {
+      throw new Error("Django returned account details without a username.")
+    }
+    return user.username
+  }
+
   useEffect(() => {
     const controller = new AbortController()
 
     async function checkDjangoSession() {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/user/`, {
-          headers: { Accept: "application/json" },
-          credentials: "include",
-          signal: controller.signal,
-        })
-
-        if (!response.ok) {
-          if (authReturn === "google") {
-            setAuthError(
-              response.status === 401 || response.status === 403
-                ? "Django did not receive the Google session. Use 127.0.0.1 for the app and try again."
-                : `Django could not verify the session (HTTP ${response.status}).`,
-            )
-          }
-          return
-        }
-
+        const currentUsername = await loadCurrentUsername(controller.signal)
+        setUsername(currentUsername)
         setIsLoggedIn(true)
         if (authReturn === "google") setActiveItem("home")
-      } catch {
+      } catch (error) {
         if (controller.signal.aborted) return
         if (authReturn === "google") {
-          setAuthError("Could not reach Django to verify your Google sign-in.")
+          setAuthError(
+            error instanceof Error && error.message.includes("HTTP 401")
+              ? "Django did not receive the Google session. Use 127.0.0.1 for the app and try again."
+              : error instanceof Error && error.message.includes("HTTP 403")
+                ? "Django did not receive the Google session. Use 127.0.0.1 for the app and try again."
+                : "Could not verify your Google sign-in with Django.",
+          )
+        } else if (returningFromAdmin) {
+          setUsername("Username unavailable")
         }
       } finally {
         if (authReturn === "google" && !controller.signal.aborted) {
@@ -2202,7 +2309,7 @@ export default function App() {
 
     void checkDjangoSession()
     return () => controller.abort()
-  }, [authReturn])
+  }, [authReturn, returningFromAdmin])
 
   useEffect(() => {
     localStorage.setItem("fsc-dark-mode", String(darkMode))
@@ -2234,7 +2341,12 @@ export default function App() {
     return (
       <LoginScreen
         error={authError}
-        onAuthenticated={() => setIsLoggedIn(true)}
+        onAuthenticated={() => {
+          setIsLoggedIn(true)
+          void loadCurrentUsername()
+            .then(setUsername)
+            .catch(() => setUsername("Username unavailable"))
+        }}
       />
     )
   }
@@ -2245,8 +2357,13 @@ export default function App() {
         darkMode ? "theme-dark" : ""
       }`}
     >
+<<<<<<< HEAD
       <TopBar />
       <div className={`flex flex-1 flex-col md:flex-row ${activeItem === "campus-map" ? "min-h-0 overflow-hidden" : ""}`}>
+=======
+      <TopBar username={username ?? "Loading username…"} />
+      <div className="flex flex-1 flex-col md:flex-row">
+>>>>>>> 09c5e22900bfb485f2597302e23165265c7e1df0
         <Sidebar
           activeItem={activeItem}
           onLogout={async () => {
@@ -2269,6 +2386,7 @@ export default function App() {
               setAuthError("Could not reach Django to end the session.")
             }
 
+            setUsername(null)
             setIsLoggedIn(false)
           }}
           onSelect={setActiveItem}
@@ -2276,20 +2394,25 @@ export default function App() {
         <main className={`flex min-w-0 flex-1 justify-center ${activeItem === "campus-map" ? "min-h-0 overflow-hidden" : "items-start p-5 sm:p-8 lg:p-10"}`}>
           {activeItem === "home" ? (
             <HomeScreen onSelect={setActiveItem} />
-          ) : activeItem === "report-lost" || activeItem === "report-found" ? (
-            <ItemReportScreen
-              key={activeItem}
-              kind={activeItem === "report-lost" ? "lost" : "found"}
-              onDone={() => setActiveItem("home")}
-            />
           ) : activeItem === "inventory" ? (
             <InventoryScreen />
+<<<<<<< HEAD
           ) : activeItem === "campus-map" ? (
             <Suspense fallback={<p className="p-8 text-sm text-[#64748b]">Loading campus map…</p>}>
               <CampusMap />
             </Suspense>
+=======
+          ) : activeItem === "report-lost" ? (
+            <LostItemReport />
+          ) : activeItem === "report-list" ? (
+            <ReportsScreen />
+          ) : activeItem === "report-found" ? (
+            <FoundItemReport onOpenInventory={() => setActiveItem("inventory")} />
+>>>>>>> 09c5e22900bfb485f2597302e23165265c7e1df0
           ) : activeItem === "recently-resolved" ? (
-            <ResolvedReportsScreen />
+            <ResolvedReportsScreen
+              onBrowseActiveReports={() => setActiveItem("report-list")}
+            />
           ) : activeItem === "settings" ? (
             <SettingsScreen
               darkMode={darkMode}

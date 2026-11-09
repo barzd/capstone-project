@@ -11,7 +11,8 @@ export type CampusBuildingLabel = {
   priority?: number
 }
 
-// Edit names here and add one entry per building. Coordinates are [longitude, latitude].
+// Shared by the map and both report forms. Edit names here and add one entry per building.
+// Coordinates are [longitude, latitude].
 // In development, right-click the map and copy the entry from the browser console.
 // Empty names are hidden, so you can position entries before naming them.
 export const campusBuildingLabels: CampusBuildingLabel[] = [
@@ -46,4 +47,13 @@ export const campusBuildingLabels: CampusBuildingLabel[] = [
 
 
 
+]
+
+// Use the map's canonical building names when saving lost and found reports.
+export const campusLocations = [
+  ...Array.from(new Set(campusBuildingLabels.map((building) => building.name.trim()).filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b)),
+  "Parking lot",
+  "Outdoors / walkway",
+  "Other",
 ]

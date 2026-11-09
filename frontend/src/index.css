@@ -47,6 +47,23 @@
   color-scheme: dark;
 }
 
+.lost-category-select option {
+  background-color: #fff;
+  color: #17212b;
+}
+
+.theme-dark .lost-category-select {
+  border-color: #64748b;
+  background-color: #161d24;
+  color: #f1f5f3;
+  color-scheme: dark;
+}
+
+.theme-dark .lost-category-select option {
+  background-color: #161d24;
+  color: #f1f5f3;
+}
+
 .theme-dark header,
 .theme-dark aside {
   background-color: #111820;
@@ -122,6 +139,7 @@
 .theme-dark .report-found-button [class*='text-[#0f172a]'] {
   color: #fff;
 }
+<<<<<<< HEAD
 .minimal-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #bdc9c3 transparent;
@@ -161,3 +179,66 @@
   background: #53655d;
 }
 
+=======
+
+.theme-dark .found-item-success {
+  border-color: #047857;
+  background-color: #102a24;
+  color: #d1fae5;
+}
+
+.theme-dark .lost-item-success {
+  border-color: #047857;
+  background-color: #102a24;
+  color: #d1fae5;
+}
+
+.theme-dark .lost-item-id {
+  border: 1px solid #34d399;
+  background-color: #06251d;
+  color: #a7f3d0;
+  font-weight: 600;
+}
+
+.theme-dark .found-item-id,
+.theme-dark .inventory-item-id {
+  border: 1px solid #34d399;
+  background-color: #06251d;
+  color: #a7f3d0;
+  font-weight: 600;
+}
+
+.theme-dark .item-retrieved-button {
+  border-color: #34d399;
+  background-color: #064e3b;
+  color: #d1fae5;
+}
+
+.theme-dark .item-retrieved-button:hover {
+  background-color: #065f46;
+}
+.theme-dark .home-hero-primary-button {
+  border: 1px solid #a7f3d0;
+  background-color: #d1fae5;
+  color: #064e3b;
+  box-shadow: 0 8px 20px rgb(2 44 34 / 35%);
+}
+
+.theme-dark .home-hero-primary-button:hover {
+  background-color: #a7f3d0;
+}
+
+.theme-dark .account-badge {
+  border-color: #34414c;
+  background-color: #1b2529;
+}
+
+.theme-dark .account-avatar {
+  background-color: #064e3b;
+  color: #d1fae5;
+}
+
+.theme-dark .account-username {
+  color: #f1f5f3;
+}
+>>>>>>> 09c5e22900bfb485f2597302e23165265c7e1df0
