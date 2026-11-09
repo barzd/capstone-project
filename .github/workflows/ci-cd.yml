@@ -170,19 +170,12 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-  deploy:
+    deploy:
     name: Deploy
     needs: test
     # Only deploy merged code on main, never pull requests.
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Check out code
         uses: actions/checkout@v5
@@ -199,21 +192,13 @@ jobs:
           key: node-modules-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('frontend/package-lock.json') }}
           fail-on-cache-miss: true
 
-      - name: Build frontend for GitHub Pages
+      - name: Build production frontend
         working-directory: frontend
-        env:
-          # Pages serves the site at /<repo-name>/, so assets need that prefix.
-          FIGMA_PUBLIC_URL: /${{ github.event.repository.name }}
         run: npm run build
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload site
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: frontend/dist
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Deploy
+        run: |
+          echo "Deploying FSC Lost & Found (commit ${GITHUB_SHA::7}) from main..."
+          echo "Production build created in frontend/dist:"
+          ls frontend/dist
+          echo "Deployment complete. (Placeholder: hosting will be added in a later sprint.)"
