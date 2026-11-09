@@ -49,4 +49,4 @@ Give Lost & Found staff what they need to manage items efficiently.
 ## Epic 7: Interactive Campus Map
 Help students easily locate lost and found items across campus.
 
-- **Campus Map**: As a student, I want to view an interactive campus map showing where items were lost or found, so that I can identify possible locations of my missing item more easily.
+- ~~**Campus Map**: As a student, I want to view an interactive campus map showing where items were lost or found, so that I can identify possible locations of my missing item more easily.~~
