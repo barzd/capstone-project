@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import InventoryScreen from "./Inventory"
+import { campusLocations } from "./campus-building-labels"
+const CampusMap = lazy(() => import("./CampusMap"))
 import FoundItemReport from "./FoundItemReport"
 import LostItemReport from "./LostItemReport"
 import ReportsScreen from "./Reports"
@@ -422,6 +424,16 @@ const pageContent: Record<string, PageContent> = {
   },
 }
 
+const persistentPageIds = new Set([
+  "home",
+  "report-lost",
+  "report-found",
+  "inventory",
+  "settings",
+  ...sections.flatMap((section) => section.items.map((item) => item.id)),
+  ...Object.keys(pageContent),
+])
+
 function TopBar({ username }: { username: string }) {
   return (
     <header className="shrink-0 bg-white" data-node-id="18:9">
@@ -488,7 +500,7 @@ function Sidebar({
   onSelect: (id: string) => void
 }) {
   return (
-    <aside className="w-full shrink-0 border-b border-[#d1fae5] bg-white px-4 py-6 md:w-[280px] md:border-r md:border-b-0">
+    <aside className={`minimal-scrollbar min-h-0 w-full shrink-0 overflow-y-auto overscroll-contain border-b border-[#d1fae5] bg-white px-4 py-6 md:w-[280px] md:border-r md:border-b-0 ${activeItem === "campus-map" ? "max-h-[35dvh] md:max-h-none" : ""}`}>
       <div className="flex flex-col gap-7">
         <div className="flex items-center gap-2.5 pl-2">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#006456]">
@@ -1535,7 +1547,7 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
 // ---------------------------------------------------------------------------
 // Report Lost Item / Report Found Item
 // Both forms share one component (ItemReportScreen). Each saves a new item to
-// the Django backend (POST /api/items/) with status "lost" or "found".
+// the Django backend's lost-items or inventory endpoint.
 // Change the backend address with VITE_API_URL in frontend/.env if needed.
 // ---------------------------------------------------------------------------
 
@@ -1560,22 +1572,6 @@ const itemCategories = [
   "Water bottle",
   "Books / school supplies",
   "Jewelry / accessories",
-  "Other",
-]
-
-const campusLocations = [
-  "Campus Center",
-  "Greenley Library",
-  "Nold Athletic Complex",
-  "Laffin Hall",
-  "Lupton Hall",
-  "Whitman Hall",
-  "Hale Hall",
-  "Knapp Hall",
-  "Thompson Hall",
-  "Roosevelt Hall",
-  "Parking lot",
-  "Outdoors / walkway",
   "Other",
 ]
 
@@ -1754,7 +1750,7 @@ function ItemReportScreen({
 
     setSubmitting(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/items/`, {
+      const response = await fetch(`${API_BASE_URL}/api/${isFound ? "inventory" : "lost-items"}/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -2237,9 +2233,11 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(returningFromAdmin)
   const [username, setUsername] = useState<string | null>(null)
   const [authError, setAuthError] = useState("")
-  const [activeItem, setActiveItem] = useState(
-    returningFromAdmin ? "inventory" : "home",
-  )
+  const [activeItem, setActiveItem] = useState(() => {
+    if (returningFromAdmin) return "inventory"
+    const savedPage = localStorage.getItem("fsc-active-page")
+    return savedPage && persistentPageIds.has(savedPage) ? savedPage : "home"
+  })
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("fsc-dark-mode") === "true",
   )
@@ -2311,6 +2309,10 @@ export default function App() {
   }, [darkMode])
 
   useEffect(() => {
+    localStorage.setItem("fsc-active-page", activeItem)
+  }, [activeItem])
+
+  useEffect(() => {
     if (!returningFromAdmin) return
 
     const url = new URL(window.location.href)
@@ -2344,12 +2346,12 @@ export default function App() {
 
   return (
     <div
-      className={`flex min-h-screen flex-col bg-[#f8faf9] ${
+      className={`flex min-h-screen flex-col bg-[#f8faf9] ${activeItem === "campus-map" ? "h-dvh min-h-0 overflow-hidden" : ""} ${
         darkMode ? "theme-dark" : ""
       }`}
     >
       <TopBar username={username ?? "Loading username…"} />
-      <div className="flex flex-1 flex-col md:flex-row">
+      <div className={`flex flex-1 flex-col md:flex-row ${activeItem === "campus-map" ? "min-h-0 overflow-hidden" : ""}`}>
         <Sidebar
           activeItem={activeItem}
           onLogout={async () => {
@@ -2377,11 +2379,15 @@ export default function App() {
           }}
           onSelect={setActiveItem}
         />
-        <main className="flex min-w-0 flex-1 items-start justify-center p-5 sm:p-8 lg:p-10">
+        <main className={`flex min-w-0 flex-1 justify-center ${activeItem === "campus-map" ? "min-h-0 overflow-hidden" : "items-start p-5 sm:p-8 lg:p-10"}`}>
           {activeItem === "home" ? (
             <HomeScreen onSelect={setActiveItem} />
           ) : activeItem === "inventory" ? (
             <InventoryScreen />
+          ) : activeItem === "campus-map" ? (
+            <Suspense fallback={<p className="p-8 text-sm text-[#64748b]">Loading campus map…</p>}>
+              <CampusMap />
+            </Suspense>
           ) : activeItem === "report-lost" ? (
             <LostItemReport />
           ) : activeItem === "report-list" ? (

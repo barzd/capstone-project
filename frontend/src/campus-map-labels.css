@@ -1,0 +1,83 @@
+.campus-map-label {
+  pointer-events: none;
+  visibility: hidden;
+  padding-bottom: 9px;
+  z-index: 1;
+}
+
+.campus-map-label-bubble {
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 190px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  padding: 5px 9px;
+  background: rgb(255 255 255 / 96%);
+  color: #17212b;
+  font: 600 12px/1.3 system-ui, sans-serif;
+  text-align: center;
+  box-shadow: 0 2px 7px rgb(15 23 42 / 22%);
+}
+
+.campus-map-label-bubble:hover {
+  background: #fff9db;
+  border-color: #a16207;
+}
+
+.campus-map-label-bubble:focus-visible {
+  outline: 3px solid #006747;
+  outline-offset: 3px;
+}
+
+.campus-map-label-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.campus-map-label-count.has-items {
+  background: #006747;
+  color: #fff;
+}
+
+.campus-map-label.is-selected .campus-map-label-count.has-items {
+  background: #b91c1c;
+}
+
+.campus-map-label::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  height: 9px;
+  background: #64748b;
+}
+
+.campus-map-label.is-selected {
+  z-index: 2;
+}
+
+.campus-map-label.is-selected .campus-map-label-bubble {
+  border-color: #b91c1c;
+  background: #fff1f2;
+  color: #991b1b;
+  box-shadow: 0 0 0 2px rgb(239 68 68 / 22%), 0 2px 7px rgb(15 23 42 / 22%);
+}
+
+.campus-map-label.is-selected::after {
+  background: #b91c1c;
+}
