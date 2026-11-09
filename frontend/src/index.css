@@ -139,7 +139,6 @@
 .theme-dark .report-found-button [class*='text-[#0f172a]'] {
   color: #fff;
 }
-<<<<<<< HEAD
 .minimal-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #bdc9c3 transparent;
@@ -179,7 +178,6 @@
   background: #53655d;
 }
 
-=======
 
 .theme-dark .found-item-success {
   border-color: #047857;
@@ -241,4 +239,3 @@
 .theme-dark .account-username {
   color: #f1f5f3;
 }
->>>>>>> 09c5e22900bfb485f2597302e23165265c7e1df0

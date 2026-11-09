@@ -17,7 +17,7 @@ import type { Feature } from "geojson"
 import { groupCampusInventory } from "./campus-inventory"
 
 const apiBaseUrl = (import.meta.env.VITE_API_URL ?? `http://${window.location.hostname}:8000`).replace(/\/$/, "")
-const itemsApiUrl = `${apiBaseUrl}/api/items/`
+const itemsApiUrl = `${apiBaseUrl}/api/inventory/`
 const buildingsLayerId = "campus-building-footprints"
 const labeledBuildingsSourceId = "labeled-campus-buildings"
 const campusOutlineSourceId = "campus-boundary-outline"

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
 
-const lostItemsApiUrl = `http://${window.location.hostname}:8000/api/lost-items/`
-const inventoryApiUrl = `http://${window.location.hostname}:8000/api/inventory/`
+const apiBaseUrl = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "")
+const lostItemsApiUrl = `${apiBaseUrl}/api/lost-items/`
+const inventoryApiUrl = `${apiBaseUrl}/api/inventory/`
 
 type ReportItem = {
   id: string

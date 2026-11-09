@@ -1,13 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from "react"
 import InventoryScreen from "./Inventory"
 import { campusLocations } from "./campus-building-labels"
-<<<<<<< HEAD
 const CampusMap = lazy(() => import("./CampusMap"))
-=======
 import FoundItemReport from "./FoundItemReport"
 import LostItemReport from "./LostItemReport"
 import ReportsScreen from "./Reports"
->>>>>>> 09c5e22900bfb485f2597302e23165265c7e1df0
 
 const assetPathPrefix = `${import.meta.env.BASE_URL}assets`
 const imgHomeIcon = `${assetPathPrefix}/6c43b.svg`
@@ -427,7 +424,6 @@ const pageContent: Record<string, PageContent> = {
   },
 }
 
-<<<<<<< HEAD
 const persistentPageIds = new Set([
   "home",
   "report-lost",
@@ -438,10 +434,7 @@ const persistentPageIds = new Set([
   ...Object.keys(pageContent),
 ])
 
-function TopBar() {
-=======
 function TopBar({ username }: { username: string }) {
->>>>>>> 09c5e22900bfb485f2597302e23165265c7e1df0
   return (
     <header className="shrink-0 bg-white" data-node-id="18:9">
       <div className="h-[5px] bg-[#006747]" data-node-id="18:10" />
@@ -1554,7 +1547,7 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
 // ---------------------------------------------------------------------------
 // Report Lost Item / Report Found Item
 // Both forms share one component (ItemReportScreen). Each saves a new item to
-// the Django backend (POST /api/items/) with status "lost" or "found".
+// the Django backend's lost-items or inventory endpoint.
 // Change the backend address with VITE_API_URL in frontend/.env if needed.
 // ---------------------------------------------------------------------------
 
@@ -1757,7 +1750,7 @@ function ItemReportScreen({
 
     setSubmitting(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/items/`, {
+      const response = await fetch(`${API_BASE_URL}/api/${isFound ? "inventory" : "lost-items"}/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -2357,13 +2350,8 @@ export default function App() {
         darkMode ? "theme-dark" : ""
       }`}
     >
-<<<<<<< HEAD
-      <TopBar />
-      <div className={`flex flex-1 flex-col md:flex-row ${activeItem === "campus-map" ? "min-h-0 overflow-hidden" : ""}`}>
-=======
       <TopBar username={username ?? "Loading username…"} />
-      <div className="flex flex-1 flex-col md:flex-row">
->>>>>>> 09c5e22900bfb485f2597302e23165265c7e1df0
+      <div className={`flex flex-1 flex-col md:flex-row ${activeItem === "campus-map" ? "min-h-0 overflow-hidden" : ""}`}>
         <Sidebar
           activeItem={activeItem}
           onLogout={async () => {
@@ -2396,19 +2384,16 @@ export default function App() {
             <HomeScreen onSelect={setActiveItem} />
           ) : activeItem === "inventory" ? (
             <InventoryScreen />
-<<<<<<< HEAD
           ) : activeItem === "campus-map" ? (
             <Suspense fallback={<p className="p-8 text-sm text-[#64748b]">Loading campus map…</p>}>
               <CampusMap />
             </Suspense>
-=======
           ) : activeItem === "report-lost" ? (
             <LostItemReport />
           ) : activeItem === "report-list" ? (
             <ReportsScreen />
           ) : activeItem === "report-found" ? (
             <FoundItemReport onOpenInventory={() => setActiveItem("inventory")} />
->>>>>>> 09c5e22900bfb485f2597302e23165265c7e1df0
           ) : activeItem === "recently-resolved" ? (
             <ResolvedReportsScreen
               onBrowseActiveReports={() => setActiveItem("report-list")}
