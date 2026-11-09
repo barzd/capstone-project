@@ -1,0 +1,219 @@
+# CI/CD pipeline for FSC Lost & Found
+#
+# Runs on every push and every pull request to main.
+# Stages (each is a job, run in order):
+#   1. Setup         - check out code, set up Python/Node, confirm secrets exist
+#   2. Dependencies  - install backend (pip) and frontend (npm) packages
+#   3. Test          - run Django tests and build the frontend
+#   4. Deploy        - publish the frontend to GitHub Pages (pushes to main only)
+#
+# Secrets (Settings > Secrets and variables > Actions):
+#   MONGODB_URI        - MongoDB connection string used by Django
+#   DJANGO_SECRET_KEY  - Django's SECRET_KEY
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.13"
+  NODE_VERSION: "22"
+
+jobs:
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Show tool versions
+        run: |
+          python --version
+          node --version
+          npm --version
+
+      - name: Check that required secrets are configured
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        run: |
+          missing=0
+          for name in MONGODB_URI DJANGO_SECRET_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::GitHub secret $name is not set (Settings > Secrets and variables > Actions)."
+              missing=1
+            fi
+          done
+          exit $missing
+
+  dependencies:
+    name: Dependencies
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        id: python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache backend virtual environment
+        id: venv-cache
+        uses: actions/cache@v4
+        with:
+          path: backend/.venv
+          key: venv-${{ runner.os }}-py${{ steps.python.outputs.python-version }}-${{ hashFiles('backend/requirements.txt') }}
+
+      - name: Install backend dependencies
+        if: steps.venv-cache.outputs.cache-hit != 'true'
+        working-directory: backend
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/pip install -r requirements.txt
+
+      - name: Verify backend dependencies
+        working-directory: backend
+        run: .venv/bin/pip check
+
+      - name: Cache frontend node_modules
+        id: npm-cache
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: node-modules-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install frontend dependencies
+        if: steps.npm-cache.outputs.cache-hit != 'true'
+        working-directory: frontend
+        run: npm ci
+
+  test:
+    name: Test
+    needs: dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        id: python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore backend virtual environment
+        uses: actions/cache/restore@v4
+        with:
+          path: backend/.venv
+          key: venv-${{ runner.os }}-py${{ steps.python.outputs.python-version }}-${{ hashFiles('backend/requirements.txt') }}
+          fail-on-cache-miss: true
+
+      - name: Restore frontend node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: frontend/node_modules
+          key: node-modules-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('frontend/package-lock.json') }}
+          fail-on-cache-miss: true
+
+      - name: Django system check
+        working-directory: backend
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        run: .venv/bin/python manage.py check
+
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        run: .venv/bin/python manage.py test items --verbosity 2
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  deploy:
+    name: Deploy
+    needs: test
+    # Only deploy merged code on main, never pull requests.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore frontend node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: frontend/node_modules
+          key: node-modules-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('frontend/package-lock.json') }}
+          fail-on-cache-miss: true
+
+      - name: Build frontend for GitHub Pages
+        working-directory: frontend
+        env:
+          # Pages serves the site at /<repo-name>/, so assets need that prefix.
+          FIGMA_PUBLIC_URL: /${{ github.event.repository.name }}
+        run: npm run build
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: frontend/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

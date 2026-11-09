@@ -169,3 +169,113 @@ Checks that real users can complete key tasks using the prototype and the workin
 - **Method:** 3–5 students complete tasks while thinking aloud
 - **Tasks:** Find a lost item, report a lost item, claim an item
 - **Success criteria:** Each task completed in under 2 minutes without help; feedback is used to revise the UI
+
+---
+
+## Getting Started (new teammates)
+
+1. **Clone** the repo and open it in VS Code:
+   ```
+   git clone https://github.com/barzd/capstone-project.git
+   ```
+2. **Backend** (Python 3.12+):
+   ```
+   cd backend
+   py -m venv venv
+   .\venv\Scripts\Activate.ps1        # macOS/Linux: source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+   Copy `backend/.env.example` to `backend/.env` and fill in `MONGODB_URI` (ask the database owner for a login) and `DJANGO_SECRET_KEY`. Then:
+   ```
+   python manage.py migrate
+   python manage.py runserver 127.0.0.1:8000
+   ```
+3. **Frontend** (Node.js 22), in a second terminal:
+   ```
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   Open **http://127.0.0.1:5173** (use `127.0.0.1`, not `localhost`, so login cookies work).
+
+Optional setup guides: `backend/GOOGLE_OAUTH_SETUP.md`, `backend/FORGOT_PASSWORD_SETUP.md`, `backend/INVENTORY_TESTING_GUIDE.md`.
+
+---
+
+## CI/CD Pipeline
+
+The workflow lives in [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) and runs automatically on **every push and every pull request to `main`** (it can also be started by hand from the **Actions** tab).
+
+| Stage | What it does |
+|---|---|
+| **Setup** | Checks out the code, installs Python 3.13 and Node.js 22, and fails early if a required GitHub Secret is missing. |
+| **Dependencies** | Installs backend packages (`pip install -r requirements.txt`) and frontend packages (`npm ci`), then caches them for the next stages. |
+| **Test** | Runs `manage.py check` and the Django test suite (`python manage.py test items`), then builds the React frontend (`npm run build`) to catch compile errors. |
+| **Deploy** | On pushes to `main` only (after Test passes), builds the frontend and publishes it to **GitHub Pages**: https://barzd.github.io/capstone-project/ |
+
+Each stage only runs if the one before it passed. Pull requests run Setup, Dependencies, and Test; Deploy is skipped until the code is merged.
+
+> **Note:** GitHub Pages hosts the frontend only. The Django backend and MongoDB run locally (see *Getting Started*), so features that need the backend (login, reports) work when running the app locally.
+
+---
+
+## Secrets
+
+No passwords, API keys, or tokens are stored in the code or the workflow file.
+
+- **Locally**, each developer keeps them in `backend/.env`, which is listed in `.gitignore` and never committed. `backend/.env.example` shows the variable names with no real values.
+- **In the pipeline**, they come from **GitHub Secrets** (*Settings → Secrets and variables → Actions*):
+
+| Secret | Used for |
+|---|---|
+| `MONGODB_URI` | MongoDB connection string Django needs to start |
+| `DJANGO_SECRET_KEY` | Django's `SECRET_KEY` (previously hard-coded in `settings.py`; moved to an environment variable and replaced with a new key) |
+
+Generate a new Django secret key with:
+```
+python -c "import secrets; print(secrets.token_urlsafe(50))"
+```
+
+**A .env file containing a database password was accidentally committed on Nov 3 (f258f02) and removed in the next commit. That password has been changed in MongoDB Atlas, so the copy in the history no longer works. The old Django SECRET_KEY was also replaced.**
+
+---
+
+## Branch Protection
+
+`main` is protected by a GitHub **ruleset** (*Settings → Rules → Rulesets*):
+
+1. **No direct pushes** to `main`; all changes go through a pull request.
+2. **At least one approval** from a teammate is required before merging.
+3. The **Test** stage of the CI/CD pipeline must pass before merging.
+
+---
+
+## Contributing Workflow
+
+1. Pick an issue on the Kanban board and move it to **In Progress**.
+2. Update your local `main`, then create a feature branch:
+   ```
+   git checkout main
+   git pull
+   git checkout -b short-feature-name
+   ```
+3. Make your changes and add or update a test for the story's acceptance criteria in `backend/items/tests.py`.
+4. Commit and push, then open a pull request to `main` that links the issue (e.g. `Closes #12`).
+5. Wait for the pipeline to turn green and for a teammate's approval, then merge. The Deploy stage publishes the update automatically.
+
+---
+
+## Feature Development
+
+| Epic | User story | Pull request | Test(s) |
+|---|---|---|---|
+| Epic 1: User Accounts & Privacy | User Accounts | #__ | |
+| Epic 1: User Accounts & Privacy | Password Recovery | #69 | |
+| Epic 1: User Accounts & Privacy | Privacy Protection | #63 | `PrivacyProtectionTests` |
+| Epic 2: ___ | ___ | #__ | |
+
+---
+
+## AI-Use Statement
+
+_TODO (team): describe how AI was used for this submission, what it got wrong in the workflow file or pipeline configuration, and how you found and fixed it._
