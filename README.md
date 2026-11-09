@@ -278,4 +278,21 @@ python -c "import secrets; print(secrets.token_urlsafe(50))"
 
 ## AI-Use Statement
 
-_TODO (team): describe how AI was used for this submission, what it got wrong in the workflow file or pipeline configuration, and how you found and fixed it._
+## AI-Use Statement
+
+We used **Claude** (Anthropic's AI assistant) as a helper throughout this submission. All AI-generated changes went through our normal process: a feature branch, a pull request, a teammate review, and the CI pipeline.
+
+**How we used it**
+- Drafted the GitHub Actions workflow (`.github/workflows/ci-cd.yml`) with the Setup, Dependencies, Test, and Deploy stages.
+- Found that Django's `SECRET_KEY` was hard-coded in `settings.py` and helped move it into GitHub Secrets / `.env`.
+- Scanned our commit history for secrets. It found a `.env` file with a real MongoDB password that had been committed and then deleted on Nov 3. We changed that password in MongoDB Atlas so the copy in the history no longer works.
+- Wrote README sections (Getting Started, CI/CD Pipeline, Secrets, Branch Protection, Contributing Workflow).
+- Helped write tests for user stories (e.g. `PrivacyProtectionTests`) and helped review teammates' pull requests.
+- Explained Git steps (branching, merge conflicts, updating a branch from `main`).
+
+**What the AI got wrong and how we fixed it**
+1. **Deploy stage assumed GitHub Pages was enabled.** The first workflow published the frontend to GitHub Pages, but Pages was never turned on for the repo (only the owner can do that). After merging, the Deploy stage failed at "Configure GitHub Pages" with `Get Pages site failed ... Not Found`. We found it in the Actions log and changed Deploy to build the production frontend and report the deployment, with real hosting (Vercel + Render) planned for a later sprint.
+2. **Outdated action version.** The workflow used `actions/cache@v4`, which targets the deprecated Node.js 20 runtime. We spotted the "Node.js 20 is deprecated" warnings in the run's annotations. It still runs, and we plan to upgrade it.
+3. **Code based on an outdated file.** Outside the workflow itself, AI-generated dropdown changes were based on an older copy of the report forms. When a teammate merged them (PR #66), they would have removed the login/CSRF code added by the Privacy Protection PR, so submitting reports failed with "Authentication credentials were not provided." We caught it by testing the PR before merging and restored the code.
+
+**What we learned:** AI output still has to be tested. Every problem above was caught by running the pipeline, reading the Actions logs, or testing a pull request before merging, not by trusting the generated code.
