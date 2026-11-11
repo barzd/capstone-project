@@ -17,6 +17,125 @@ type InventoryItem = {
   storage_location: string
 }
 
+type SortOption = "alphabetical" | "date" | "id" | "location"
+type DateSortOrder = "newest" | "oldest"
+
+const sortOptions: { id: SortOption; label: string }[] = [
+  { id: "alphabetical", label: "Alphabetical Order" },
+  { id: "date", label: "By Date" },
+  { id: "id", label: "By ID" },
+  { id: "location", label: "By location" },
+]
+
+function sortItems(
+  items: InventoryItem[],
+  selectedOptions: Set<SortOption>,
+  dateSortOrder: DateSortOrder,
+): InventoryItem[] {
+  if (selectedOptions.size === 0) return items
+
+  return [...items].sort((a, b) => {
+    for (const { id } of sortOptions) {
+      if (!selectedOptions.has(id)) continue
+
+      const comparison =
+        id === "alphabetical"
+          ? a.title.localeCompare(b.title)
+          : id === "date"
+            ? dateSortOrder === "newest"
+              ? b.date.localeCompare(a.date)
+              : a.date.localeCompare(b.date)
+            : id === "id"
+              ? a.id.localeCompare(b.id)
+              : a.location.localeCompare(b.location)
+
+      if (comparison !== 0) return comparison
+    }
+
+    return 0
+  })
+}
+
+function searchItems(items: InventoryItem[], query: string): InventoryItem[] {
+  const searchTerm = query.trim().toLocaleLowerCase()
+  if (!searchTerm) return items
+
+  return items.filter((item) =>
+    [
+      item.title,
+      item.description,
+      item.location,
+      item.date,
+      item.id,
+      item.storage_location,
+    ].some((value) => value.toLocaleLowerCase().includes(searchTerm)),
+  )
+}
+
+function SortMenu({
+  selectedOptions,
+  onChange,
+  dateSortOrder,
+  onDateSortOrderChange,
+}: {
+  selectedOptions: Set<SortOption>
+  onChange: (option: SortOption, isSelected: boolean) => void
+  dateSortOrder: DateSortOrder
+  onDateSortOrderChange: (order: DateSortOrder) => void
+}) {
+  return (
+    <details className="staff-sort-menu relative">
+      <summary className="staff-sort-trigger flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-xl border border-[#dce9e3] bg-white px-3 py-2 text-sm font-semibold text-[#334155] transition-colors hover:bg-emerald-50">
+        Sort by
+        <span aria-hidden="true" className="text-xs">
+          ▾
+        </span>
+      </summary>
+      <fieldset className="staff-sort-options absolute top-full right-0 z-10 mt-2 w-56 space-y-1 rounded-xl border border-[#dce9e3] bg-white p-3 shadow-lg">
+        <legend className="px-1 text-xs font-semibold tracking-wide text-[#64748b] uppercase">
+          Sort options
+        </legend>
+        {sortOptions.map(({ id, label }) => (
+          <div key={id}>
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-[#334155] hover:bg-emerald-50">
+              <input
+                checked={selectedOptions.has(id)}
+                className="accent-[#006747]"
+                onChange={(event) => onChange(id, event.currentTarget.checked)}
+                type="checkbox"
+              />
+              {label}
+            </label>
+            {id === "date" && (
+              <label className="ml-7 flex flex-col gap-1 px-2 pb-2 text-xs text-[#64748b]">
+                Date order
+                <select
+                  aria-label="Date order"
+                  className="date-sort-select rounded-lg border border-[#dce9e3] bg-white px-2 py-1.5 text-sm text-[#334155]"
+                  onChange={(event) =>
+                    onDateSortOrderChange(
+                      event.currentTarget.value === "oldest"
+                        ? "oldest"
+                        : "newest",
+                    )
+                  }
+                  value={dateSortOrder}
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                </select>
+              </label>
+            )}
+          </div>
+        ))}
+        <p className="px-2 pt-1 text-xs text-[#64748b]">
+          Checked options apply in the order shown.
+        </p>
+      </fieldset>
+    </details>
+  )
+}
+
 function optionalText(value: unknown, field: string): string {
   if (value === undefined || value === null) return ""
   if (typeof value !== "string") {
@@ -85,6 +204,12 @@ function InventoryScreen() {
   )
   const [items, setItems] = useState<InventoryItem[]>([])
   const [lostItems, setLostItems] = useState<InventoryItem[]>([])
+  const [selectedSortOptions, setSelectedSortOptions] = useState<
+    Set<SortOption>
+  >(() => new Set())
+  const [dateSortOrder, setDateSortOrder] =
+    useState<DateSortOrder>("newest")
+  const [searchQuery, setSearchQuery] = useState("")
 
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingLostItems, setIsLoadingLostItems] = useState(true)
@@ -95,10 +220,34 @@ function InventoryScreen() {
   const [needsSuperuserLogin, setNeedsSuperuserLogin] = useState(false)
 
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null)
+  const [deletingLostItemId, setDeletingLostItemId] = useState<string | null>(
+    null,
+  )
   const [resolvingItemId, setResolvingItemId] = useState<string | null>(null)
 
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteLostItemError, setDeleteLostItemError] = useState<string | null>(
+    null,
+  )
   const [resolveError, setResolveError] = useState<string | null>(null)
+
+  const sortedItems = searchItems(
+    sortItems(items, selectedSortOptions, dateSortOrder),
+    searchQuery,
+  )
+  const sortedLostItems = searchItems(
+    sortItems(lostItems, selectedSortOptions, dateSortOrder),
+    searchQuery,
+  )
+
+  function updateSortOption(option: SortOption, isSelected: boolean) {
+    setSelectedSortOptions((currentOptions) => {
+      const nextOptions = new Set(currentOptions)
+      if (isSelected) nextOptions.add(option)
+      else nextOptions.delete(option)
+      return nextOptions
+    })
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -237,6 +386,71 @@ function InventoryScreen() {
       )
     } finally {
       setResolvingItemId(null)
+    }
+  }
+
+  async function deleteLostItem(item: InventoryItem) {
+    if (
+      !window.confirm(
+        `Delete the report for "${item.title}"? This cannot be undone.`,
+      )
+    ) {
+      return
+    }
+
+    const csrfToken = getCsrfToken()
+    if (!csrfToken) {
+      setDeleteLostItemError(
+        "Could not verify this delete request. Refresh the page and try again.",
+      )
+      return
+    }
+
+    setDeletingLostItemId(item.id)
+    setDeleteLostItemError(null)
+
+    try {
+      const response = await fetch(
+        `${lostItemsApiUrl}${encodeURIComponent(item.id)}/`,
+        {
+          method: "DELETE",
+          headers: {
+            Accept: "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+          credentials: "include",
+        },
+      )
+
+      if (
+        response.status === 403 &&
+        response.headers.get("content-type")?.includes("text/html")
+      ) {
+        throw new Error(
+          "Django rejected the request's CSRF origin. Restart the backend server, refresh this page, and try again.",
+        )
+      }
+      if (response.status === 401 || response.status === 403) {
+        setNeedsSuperuserLogin(true)
+        throw new Error(
+          "Your account cannot delete this report. Sign in with a Django superuser account to remove any report.",
+        )
+      }
+      if (!response.ok) {
+        throw new Error(`Could not delete the report (HTTP ${response.status}).`)
+      }
+
+      setLostItems((currentItems) =>
+        currentItems.filter((currentItem) => currentItem.id !== item.id),
+      )
+    } catch (requestError) {
+      setDeleteLostItemError(
+        requestError instanceof Error
+          ? requestError.message
+          : "An unexpected error occurred while deleting the report.",
+      )
+    } finally {
+      setDeletingLostItemId(null)
     }
   }
 
@@ -392,16 +606,54 @@ function InventoryScreen() {
               inventory.
             </p>
           </div>
-          <span className="w-fit rounded-full bg-amber-50 px-3 py-1.5 font-['Figtree:SemiBold'] text-xs font-semibold text-amber-800">
-            {isLoadingLostItems
-              ? "Loading…"
-              : `${lostItems.length} open reports`}
-          </span>
+          <div className="flex flex-col gap-3 sm:items-end">
+            <div className="flex items-center gap-3">
+              <span className="w-fit rounded-full bg-amber-50 px-3 py-1.5 font-['Figtree:SemiBold'] text-xs font-semibold text-amber-800">
+                {isLoadingLostItems
+                  ? "Loading…"
+                  : searchQuery.trim()
+                    ? `${sortedLostItems.length} of ${lostItems.length} open reports`
+                    : `${lostItems.length} open reports`}
+              </span>
+              <SortMenu
+                dateSortOrder={dateSortOrder}
+                onDateSortOrderChange={setDateSortOrder}
+                onChange={updateSortOption}
+                selectedOptions={selectedSortOptions}
+              />
+            </div>
+            <label className="block w-full sm:w-64">
+              <span className="sr-only">Search item requests</span>
+              <input
+                className="staff-search-input min-h-10 w-full rounded-xl border border-[#dce9e3] bg-white px-3 py-2 text-sm text-[#334155] outline-none transition-colors placeholder:text-[#64748b] focus:border-[#006747] focus:ring-2 focus:ring-emerald-100"
+                onChange={(event) => setSearchQuery(event.currentTarget.value)}
+                placeholder="Search item requests…"
+                type="search"
+                value={searchQuery}
+              />
+            </label>
+          </div>
         </div>
 
         {resolveError && (
           <p className="px-6 pt-5 text-sm text-red-700" role="alert">
             {resolveError}
+            {needsSuperuserLogin && (
+              <>
+                {" "}
+                <a className="font-semibold underline" href={adminLoginUrl}>
+                  Sign in to Django admin
+                </a>
+              </>
+            )}
+          </p>
+        )}
+        {deleteLostItemError && (
+          <p
+            className="delete-report-error px-6 pt-5 text-sm text-red-700"
+            role="alert"
+          >
+            {deleteLostItemError}
             {needsSuperuserLogin && (
               <>
                 {" "}
@@ -424,9 +676,13 @@ function InventoryScreen() {
           <p className="px-6 py-10 text-center text-sm text-[#64748b]">
             There are no lost reports to resolve.
           </p>
+        ) : sortedLostItems.length === 0 ? (
+          <p className="px-6 py-10 text-center text-sm text-[#64748b]">
+            No item requests match “{searchQuery.trim()}”.
+          </p>
         ) : (
           <ul className="divide-y divide-[#e8efeb]">
-            {lostItems.map((item) => (
+            {sortedLostItems.map((item) => (
               <li
                 className="flex flex-col justify-between gap-4 px-6 py-5 sm:flex-row sm:items-center sm:px-8"
                 key={item.id}
@@ -449,16 +705,32 @@ function InventoryScreen() {
                     {item.id}
                   </code>
                 </div>
-                <button
-                  className="w-fit shrink-0 rounded-xl bg-[#006747] px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-white transition-colors hover:bg-[#00523a] disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={resolvingItemId !== null}
-                  onClick={() => resolveLostItem(item)}
-                  type="button"
-                >
-                  {resolvingItemId === item.id
-                    ? "Resolving…"
-                    : "Resolve & Add to Inventory"}
-                </button>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <button
+                    className="delete-report-button rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={
+                      resolvingItemId !== null || deletingLostItemId !== null
+                    }
+                    onClick={() => deleteLostItem(item)}
+                    type="button"
+                  >
+                    {deletingLostItemId === item.id
+                      ? "Deleting…"
+                      : "Delete report"}
+                  </button>
+                  <button
+                    className="rounded-xl bg-[#006747] px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-white transition-colors hover:bg-[#00523a] disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={
+                      resolvingItemId !== null || deletingLostItemId !== null
+                    }
+                    onClick={() => resolveLostItem(item)}
+                    type="button"
+                  >
+                    {resolvingItemId === item.id
+                      ? "Resolving…"
+                      : "Resolve & Add to Inventory"}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -476,9 +748,33 @@ function InventoryScreen() {
               Found items
             </h2>
           </div>
-          <span className="w-fit rounded-full bg-emerald-50 px-3 py-1.5 font-['Figtree:SemiBold'] text-xs font-semibold text-[#006747]">
-            {isLoading ? "Loading…" : `${items.length} items`}
-          </span>
+          <div className="flex flex-col gap-3 sm:items-end">
+            <div className="flex items-center gap-3">
+              <span className="w-fit rounded-full bg-emerald-50 px-3 py-1.5 font-['Figtree:SemiBold'] text-xs font-semibold text-[#006747]">
+                {isLoading
+                  ? "Loading…"
+                  : searchQuery.trim()
+                    ? `${sortedItems.length} of ${items.length} items`
+                    : `${items.length} items`}
+              </span>
+              <SortMenu
+                dateSortOrder={dateSortOrder}
+                onDateSortOrderChange={setDateSortOrder}
+                onChange={updateSortOption}
+                selectedOptions={selectedSortOptions}
+              />
+            </div>
+            <label className="block w-full sm:w-64">
+              <span className="sr-only">Search found items</span>
+              <input
+                className="staff-search-input min-h-10 w-full rounded-xl border border-[#dce9e3] bg-white px-3 py-2 text-sm text-[#334155] outline-none transition-colors placeholder:text-[#64748b] focus:border-[#006747] focus:ring-2 focus:ring-emerald-100"
+                onChange={(event) => setSearchQuery(event.currentTarget.value)}
+                placeholder="Search found items…"
+                type="search"
+                value={searchQuery}
+              />
+            </label>
+          </div>
         </div>
 
         {error ? (
@@ -513,6 +809,10 @@ function InventoryScreen() {
               Found items will appear here when they are added.
             </p>
           </div>
+        ) : sortedItems.length === 0 ? (
+          <p className="px-6 py-16 text-center text-sm text-[#64748b]">
+            No found items match “{searchQuery.trim()}”.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             {deleteError && (
@@ -535,7 +835,7 @@ function InventoryScreen() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e8efeb]">
-                {items.map((item) => (
+                {sortedItems.map((item) => (
                   <tr
                     className="align-top text-sm text-[#334155]"
                     key={item.id}
