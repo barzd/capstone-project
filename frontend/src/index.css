@@ -215,6 +215,68 @@
 .theme-dark .item-retrieved-button:hover {
   background-color: #065f46;
 }
+
+.theme-dark .delete-report-button {
+  border-color: #7f1d1d;
+  background-color: #3b1f24;
+  color: #fecaca;
+}
+
+.theme-dark .delete-report-button:hover {
+  background-color: #54242c;
+}
+
+.theme-dark .delete-report-error {
+  color: #fca5a5;
+}
+
+.theme-dark .staff-sort-trigger,
+.theme-dark .staff-sort-options {
+  border-color: #34414c;
+  background-color: #161d24;
+  color: #f1f5f3;
+}
+
+.theme-dark .staff-sort-trigger:hover,
+.theme-dark .staff-sort-options label:hover {
+  background-color: #1b2529;
+}
+
+.theme-dark .staff-sort-options label {
+  color: #f1f5f3;
+}
+
+.theme-dark .staff-sort-options p,
+.theme-dark .staff-sort-options legend {
+  color: #aab4bf;
+}
+
+.theme-dark .date-sort-select {
+  border-color: #34414c;
+  background-color: #111820;
+  color: #f1f5f3;
+}
+
+.theme-dark .date-sort-select option {
+  background-color: #161d24;
+  color: #f1f5f3;
+}
+
+.theme-dark .staff-search-input {
+  border-color: #34414c;
+  background-color: #111820;
+  color: #f1f5f3;
+}
+
+.theme-dark .staff-search-input::placeholder {
+  color: #aab4bf;
+}
+
+.theme-dark .staff-search-input:focus {
+  border-color: #34d399;
+  --tw-ring-color: rgb(52 211 153 / 20%);
+}
+
 .theme-dark .home-hero-primary-button {
   border: 1px solid #a7f3d0;
   background-color: #d1fae5;
