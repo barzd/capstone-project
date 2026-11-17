@@ -1,5 +1,7 @@
 """Photo upload helpers for lost and found reports."""
 
+import uuid
+
 from django.http import Http404, HttpResponse
 from rest_framework import serializers
 
@@ -47,6 +49,8 @@ def move_photo_into(validated_data: dict) -> None:
     if photo:
         validated_data["photo"] = photo["data"]
         validated_data["photo_content_type"] = photo["content_type"]
+        # New version -> new photo_url, so browsers don't show the old photo.
+        validated_data["photo_version"] = uuid.uuid4().hex[:12]
 
 
 def photo_response(item) -> HttpResponse:

@@ -53,6 +53,9 @@ class Item(models.Model):
     # never included in list responses.
     photo = models.BinaryField(null=True, blank=True, editable=False)
     photo_content_type = models.CharField(max_length=50, blank=True, editable=False)
+    # Changes every time a new photo is uploaded. It's added to photo_url so
+    # browsers fetch the new photo instead of showing a cached old one.
+    photo_version = models.CharField(max_length=32, blank=True, editable=False)
 
     def __str__(self):
         return self.title

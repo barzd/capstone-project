@@ -284,17 +284,40 @@ class PhotoUploadTests(SimpleTestCase):
         for serializer in (ItemSerializer(), LostItemSerializer(), StaffItemSerializer()):
             self.assertTrue(serializer.fields["photo"].write_only)
             self.assertNotIn("photo_content_type", serializer.fields)
+            self.assertNotIn("photo_version", serializer.fields)
 
     def test_photo_url_points_to_the_photo_endpoint(self):
         request = RequestFactory().get("/api/lost-items/")
-        item = Mock(pk="abc123", photo_content_type="image/jpeg")
+        item = Mock(pk="abc123", photo_content_type="image/jpeg", photo_version="v1")
         serializer = LostItemSerializer(
             context={"request": request, "view": Mock(basename="lost-items")}
         )
         self.assertEqual(
             serializer.get_photo_url(item),
-            "http://testserver/api/lost-items/abc123/photo/",
+            "http://testserver/api/lost-items/abc123/photo/?v=v1",
         )
+
+    def test_replacing_a_photo_changes_its_url(self):
+        # A new photo_url makes browsers show the new photo right away
+        # instead of a cached copy of the old one.
+        first = {"photo": {"data": self.PNG, "content_type": "image/png"}}
+        second = {"photo": {"data": self.JPEG, "content_type": "image/jpeg"}}
+        move_photo_into(first)
+        move_photo_into(second)
+        self.assertTrue(first["photo_version"])
+        self.assertNotEqual(first["photo_version"], second["photo_version"])
+
+        request = RequestFactory().get("/api/lost-items/")
+        serializer = LostItemSerializer(
+            context={"request": request, "view": Mock(basename="lost-items")}
+        )
+        urls = {
+            serializer.get_photo_url(
+                Mock(pk="abc123", photo_content_type="image/png", photo_version=data["photo_version"])
+            )
+            for data in (first, second)
+        }
+        self.assertEqual(len(urls), 2)
 
     def test_photo_url_is_empty_when_there_is_no_photo(self):
         item = Mock(pk="abc123", photo_content_type="")

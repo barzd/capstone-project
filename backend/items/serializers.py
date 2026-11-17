@@ -20,7 +20,7 @@ class ItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Item
         # The raw photo bytes are never sent in JSON responses.
-        exclude = ["reported_by", "photo_content_type"]
+        exclude = ["reported_by", "photo_content_type", "photo_version"]
 
     def validate_photo(self, upload):
         return read_photo_upload(upload)
@@ -37,7 +37,11 @@ class ItemSerializer(serializers.ModelSerializer):
             path = reverse(f"{basename}-photo", kwargs={"pk": str(item.pk)})
         except NoReverseMatch:
             return None
-        return request.build_absolute_uri(path)
+        url = request.build_absolute_uri(path)
+        # The version changes whenever the photo is replaced, so the browser
+        # downloads the new photo instead of reusing a cached copy.
+        version = item.photo_version if isinstance(item.photo_version, str) else ""
+        return f"{url}?v={version}" if version else url
 
     def create(self, validated_data):
         move_photo_into(validated_data)
