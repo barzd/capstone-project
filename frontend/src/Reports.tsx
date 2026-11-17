@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { ItemPhoto } from "./PhotoField"
+import MyReports from "./MyReports"
 
 const apiBaseUrl = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "")
 const lostItemsApiUrl = `${apiBaseUrl}/api/lost-items/`
@@ -165,7 +166,10 @@ function ReportSection({
 }
 
 export default function ReportsScreen() {
-  const [selectedType, setSelectedType] = useState<"lost" | "found">("lost")
+  const [selectedType, setSelectedType] = useState<"lost" | "found" | "mine">("lost")
+  const [myReportCount, setMyReportCount] = useState<number | null>(null)
+  // Bumped after editing/closing a report so the public lists reload.
+  const [reloadKey, setReloadKey] = useState(0)
   const [lostItems, setLostItems] = useState<ReportItem[]>([])
   const [foundItems, setFoundItems] = useState<ReportItem[]>([])
   const [lostError, setLostError] = useState<string | null>(null)
@@ -211,7 +215,7 @@ export default function ReportsScreen() {
     void load(inventoryApiUrl, "found")
 
     return () => controller.abort()
-  }, [])
+  }, [reloadKey])
 
   const showingLostItems = selectedType === "lost"
   const visibleItems = showingLostItems ? lostItems : foundItems
@@ -236,7 +240,7 @@ export default function ReportsScreen() {
 
       <nav
         aria-label="Report type"
-        className="grid grid-cols-2 gap-3 rounded-2xl border border-[#dce9e3] bg-white p-2 shadow-sm"
+        className="grid gap-3 rounded-2xl border border-[#dce9e3] bg-white p-2 shadow-sm sm:grid-cols-3"
       >
         {[
           {
@@ -250,6 +254,12 @@ export default function ReportsScreen() {
             label: "Found Items",
             count: foundItems.length,
             isLoading: isLoadingFound,
+          },
+          {
+            id: "mine" as const,
+            label: "My Reports",
+            count: myReportCount ?? "–",
+            isLoading: false,
           },
         ].map((option) => {
           const isSelected = selectedType === option.id
@@ -283,6 +293,12 @@ export default function ReportsScreen() {
         })}
       </nav>
 
+      {selectedType === "mine" ? (
+        <MyReports
+          onChanged={() => setReloadKey((key) => key + 1)}
+          onCountChange={setMyReportCount}
+        />
+      ) : (
       <ReportSection
         description={
           showingLostItems
@@ -294,6 +310,7 @@ export default function ReportsScreen() {
         items={visibleItems}
         title={title}
       />
+      )}
     </div>
   )
 }
