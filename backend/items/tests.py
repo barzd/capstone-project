@@ -1,11 +1,15 @@
 from datetime import date
 from unittest.mock import Mock, patch
 
-from django.test import SimpleTestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http import Http404
+from django.test import RequestFactory, SimpleTestCase
+from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from items.models import Item
+from items.photos import MAX_PHOTO_BYTES, move_photo_into, photo_response
 from items.serializers import (
     ItemSerializer,
     LostItemSerializer,
@@ -25,7 +29,17 @@ class LostItemSerializerTests(SimpleTestCase):
 
         self.assertEqual(
             set(serializer.fields),
-            {"id", "title", "description", "category", "color", "location", "date"},
+            {
+                "id",
+                "title",
+                "description",
+                "category",
+                "color",
+                "location",
+                "date",
+                "photo",
+                "photo_url",
+            },
         )
         self.assertNotIn("status", serializer.fields)
         self.assertNotIn("inventory_status", serializer.fields)
@@ -206,3 +220,102 @@ class PrivacyProtectionTests(SimpleTestCase):
         view = LostItemViewSet()
         view.action = "mine"
         self.assertIsInstance(view.get_permissions()[0], IsAuthenticated)
+
+
+class PhotoUploadTests(SimpleTestCase):
+    """User story: Photo Uploads.
+
+    As a student, I want to upload a photo of my lost item, so that others can
+    identify it more easily.
+    """
+
+    JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+    PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+    WEBP = b"RIFF\x00\x00\x00\x00WEBPVP8 " + b"\x00" * 64
+
+    def upload(self, data, name="photo.jpg", content_type="image/jpeg"):
+        return SimpleUploadedFile(name, data, content_type=content_type)
+
+    # --- Accepting and rejecting files --------------------------------------
+
+    def test_jpeg_png_and_webp_are_accepted(self):
+        for data, expected in (
+            (self.JPEG, "image/jpeg"),
+            (self.PNG, "image/png"),
+            (self.WEBP, "image/webp"),
+        ):
+            photo = ItemSerializer().validate_photo(self.upload(data))
+            self.assertEqual(photo["content_type"], expected)
+            self.assertEqual(photo["data"], data)
+
+    def test_non_images_are_rejected_even_if_renamed(self):
+        fakes = [
+            b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>",
+            b"<html><script>alert(1)</script></html>",
+            b"GIF89a" + b"\x00" * 20,
+            b"just some text",
+        ]
+        for data in fakes:
+            with self.assertRaises(serializers.ValidationError):
+                ItemSerializer().validate_photo(self.upload(data, name="cat.jpg"))
+
+    def test_photos_over_the_size_limit_are_rejected(self):
+        too_big = self.JPEG + b"\x00" * MAX_PHOTO_BYTES
+        with self.assertRaises(serializers.ValidationError):
+            LostItemSerializer().validate_photo(self.upload(too_big))
+
+    # --- Saving -----------------------------------------------------------------
+
+    def test_validated_photo_is_saved_into_the_item_fields(self):
+        validated = {"title": "Keys", "photo": {"data": self.PNG, "content_type": "image/png"}}
+        move_photo_into(validated)
+        self.assertEqual(validated["photo"], self.PNG)
+        self.assertEqual(validated["photo_content_type"], "image/png")
+
+    def test_reports_without_a_photo_still_work(self):
+        validated = {"title": "Keys"}
+        move_photo_into(validated)
+        self.assertEqual(validated, {"title": "Keys"})
+        self.assertFalse(LostItemSerializer().fields["photo"].required)
+
+    # --- Showing photos ---------------------------------------------------------
+
+    def test_photo_bytes_are_never_included_in_responses(self):
+        for serializer in (ItemSerializer(), LostItemSerializer(), StaffItemSerializer()):
+            self.assertTrue(serializer.fields["photo"].write_only)
+            self.assertNotIn("photo_content_type", serializer.fields)
+
+    def test_photo_url_points_to_the_photo_endpoint(self):
+        request = RequestFactory().get("/api/lost-items/")
+        item = Mock(pk="abc123", photo_content_type="image/jpeg")
+        serializer = LostItemSerializer(
+            context={"request": request, "view": Mock(basename="lost-items")}
+        )
+        self.assertEqual(
+            serializer.get_photo_url(item),
+            "http://testserver/api/lost-items/abc123/photo/",
+        )
+
+    def test_photo_url_is_empty_when_there_is_no_photo(self):
+        item = Mock(pk="abc123", photo_content_type="")
+        serializer = ItemSerializer(
+            context={"request": RequestFactory().get("/"), "view": Mock(basename="inventory")}
+        )
+        self.assertIsNone(serializer.get_photo_url(item))
+
+    def test_photo_endpoint_serves_image_safely(self):
+        response = photo_response(Mock(photo=self.PNG, photo_content_type="image/png"))
+        self.assertEqual(response["Content-Type"], "image/png")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response.content, self.PNG)
+
+    def test_photo_endpoint_404s_without_a_photo(self):
+        with self.assertRaises(Http404):
+            photo_response(Mock(photo=None, photo_content_type=""))
+
+    def test_photos_are_public_like_the_reports(self):
+        for viewset in (LostItemViewSet, InventoryViewSet):
+            view = viewset()
+            view.action = "photo"
+            self.assertIsInstance(view.get_permissions()[0], AllowAny)
+

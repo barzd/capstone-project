@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { ItemPhoto } from "./PhotoField"
 
 const apiBaseUrl = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "")
 const lostItemsApiUrl = `${apiBaseUrl}/api/lost-items/`
@@ -12,6 +13,7 @@ type ReportItem = {
   color: string
   location: string
   date: string
+  photo_url: string | null
 }
 
 function optionalText(value: unknown, field: string): string {
@@ -69,6 +71,10 @@ function parseReports(payload: unknown): ReportItem[] {
         "location",
       ),
       date: optionalText("date" in record ? record.date : undefined, "date"),
+      photo_url:
+        "photo_url" in record && typeof record.photo_url === "string"
+          ? record.photo_url
+          : null,
     }
   })
 }
@@ -126,7 +132,9 @@ function ReportSection({
               className="grid gap-3 px-6 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:px-8"
               key={item.id}
             >
-              <div>
+              <div className="flex gap-4">
+                <ItemPhoto title={item.title} url={item.photo_url} />
+                <div>
                 <h3 className="font-['Figtree:SemiBold'] font-semibold text-[#17212b]">
                   {item.title}
                 </h3>
@@ -140,6 +148,7 @@ function ReportSection({
                     {item.description}
                   </p>
                 )}
+                </div>
               </div>
               <div className="flex items-center gap-3 text-xs text-[#64748b]">
                 <span>{formatDate(item.date)}</span>

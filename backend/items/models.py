@@ -48,5 +48,11 @@ class Item(models.Model):
         related_name="reported_items",
     )
 
+    # Optional photo of the item, stored in the database (not on disk) so every
+    # teammate sharing the database can see it. Served by the /photo/ endpoint;
+    # never included in list responses.
+    photo = models.BinaryField(null=True, blank=True, editable=False)
+    photo_content_type = models.CharField(max_length=50, blank=True, editable=False)
+
     def __str__(self):
         return self.title
