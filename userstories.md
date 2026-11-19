@@ -17,13 +17,13 @@ Let users report lost and found items with enough detail to identify them.
 - ~~**Item Reporting:** As a student, I want to report a lost item, so that others can help me find it.~~
 - ~~**Found Item Reporting:** As a student or staff member, I want to report an item I found, so that it can be returned to its owner.~~
 - ~~**Photo Uploads:** As a student, I want to upload a photo of my lost item, so that others can identify it more easily.~~
-- **Report Management:** As a student, I want to edit or close my lost item report, so that I can keep my information updated if I find my item.
+- ~~**Report Management:** As a student, I want to edit or close my lost item report, so that I can keep my information updated if I find my item.~~
 
 ## Epic 3: Search & Matching
 Help owners find their items quickly through search and smart matching.
 
 - **AI Matching & Search:** As a student, I want the system to suggest possible matching found items, so that I can recover my items faster.
-- **Search Filters:** As a student, I want to filter items by category, color, location, and date, so that I can find possible matches more easily.
+- ~~**Search Filters:** As a student, I want to filter items by category, color, location, and date, so that I can find possible matches more easily.~~
 - **Match Notifications:** As a student, I want to receive a notification when a possible match is found, so that I can check if my item has been turned in.
 
 ## Epic 4: Claims & Verification
