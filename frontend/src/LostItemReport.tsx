@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react"
+import PhotoField from "./PhotoField"
 import ChoiceField, {
   LocationDetailsField,
   readChoice,
@@ -33,9 +34,16 @@ function localDateValue(): string {
 }
 
 function getErrorMessage(payload: unknown, status: number): string {
-  if (typeof payload === "object" && payload !== null && "detail" in payload) {
-    const detail = payload.detail
-    if (typeof detail === "string") return detail
+  if (typeof payload === "object" && payload !== null) {
+    if ("detail" in payload && typeof payload.detail === "string") {
+      return payload.detail
+    }
+    // Field errors from the API, e.g. {"photo": ["Photo must be a JPEG..."]}
+    for (const messages of Object.values(payload)) {
+      if (Array.isArray(messages) && typeof messages[0] === "string") {
+        return messages[0]
+      }
+    }
   }
   return `Could not submit the lost item (HTTP ${status}).`
 }
@@ -43,6 +51,7 @@ function getErrorMessage(payload: unknown, status: number): string {
 export default function LostItemReport() {
   // Changing the key after a successful submit clears every field.
   const [formKey, setFormKey] = useState(0)
+  const [photo, setPhoto] = useState<Blob | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submittedItemId, setSubmittedItemId] = useState<string | null>(null)
@@ -63,17 +72,22 @@ export default function LostItemReport() {
       date: String(formData.get("date") ?? ""),
     }
 
+    // Sent as multipart form data so an optional photo can go with the report.
+    const body = new FormData()
+    for (const [key, value] of Object.entries(item)) body.append(key, value)
+    if (photo) body.append("photo", photo, "photo.jpg")
+
     try {
       const csrfToken = await getCsrfToken()
       const response = await fetch(lostItemsApiUrl, {
         method: "POST",
+        // No Content-Type header: the browser sets the multipart boundary.
         headers: {
           Accept: "application/json",
-          "Content-Type": "application/json",
           "X-CSRFToken": csrfToken,
         },
         credentials: "include",
-        body: JSON.stringify(item),
+        body,
       })
 
       if (response.status === 401 || response.status === 403) {
@@ -101,6 +115,7 @@ export default function LostItemReport() {
 
       setSubmittedItemId(String(payload.id))
       setFormKey((key) => key + 1)
+      setPhoto(null)
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -210,6 +225,8 @@ export default function LostItemReport() {
             placeholder="Add helpful identifying details"
           />
         </label>
+
+        <PhotoField disabled={isSubmitting} onChange={setPhoto} />
 
         {error && (
           <p

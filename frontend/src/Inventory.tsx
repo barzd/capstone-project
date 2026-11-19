@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { ItemPhoto } from "./PhotoField"
 
 const imgPackageCheck = `${import.meta.env.BASE_URL}assets/c05e7.svg`
 
@@ -15,6 +16,7 @@ type InventoryItem = {
   location: string
   date: string
   storage_location: string
+  photo_url: string | null
 }
 
 type SortOption = "alphabetical" | "date" | "id" | "location"
@@ -187,6 +189,10 @@ function parseInventoryItems(payload: unknown): InventoryItem[] {
         "storage_location" in record ? record.storage_location : undefined,
         "storage location",
       ),
+      photo_url:
+        "photo_url" in record && typeof record.photo_url === "string"
+          ? record.photo_url
+          : null,
     }
   })
 }
@@ -687,6 +693,8 @@ function InventoryScreen() {
                 className="flex flex-col justify-between gap-4 px-6 py-5 sm:flex-row sm:items-center sm:px-8"
                 key={item.id}
               >
+                <div className="flex min-w-0 gap-4">
+                <ItemPhoto title={item.title} url={item.photo_url} />
                 <div className="min-w-0">
                   <p className="font-['Figtree:SemiBold'] font-semibold text-[#17212b]">
                     {item.title}
@@ -704,6 +712,7 @@ function InventoryScreen() {
                   <code className="mt-2 inline-block max-w-full break-all rounded-md border border-[#dce3e0] bg-[#f8faf9] px-2 py-1 font-mono text-xs text-[#334155]">
                     {item.id}
                   </code>
+                </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
                   <button
@@ -841,7 +850,14 @@ function InventoryScreen() {
                     key={item.id}
                   >
                     <td className="px-6 py-4 font-semibold text-[#17212b]">
-                      {item.title}
+                      <div className="flex items-center gap-3">
+                        <ItemPhoto
+                          className="size-12"
+                          title={item.title}
+                          url={item.photo_url}
+                        />
+                        <span>{item.title}</span>
+                      </div>
                     </td>
                     <td className="max-w-sm whitespace-pre-wrap px-6 py-4">
                       {item.description || "—"}
