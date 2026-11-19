@@ -1,11 +1,15 @@
 from datetime import date
 from unittest.mock import Mock, patch
 
-from django.test import SimpleTestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http import Http404
+from django.test import RequestFactory, SimpleTestCase
+from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from items.models import Item
+from items.photos import MAX_PHOTO_BYTES, move_photo_into, photo_response
 from items.serializers import (
     ItemSerializer,
     LostItemSerializer,
@@ -25,7 +29,17 @@ class LostItemSerializerTests(SimpleTestCase):
 
         self.assertEqual(
             set(serializer.fields),
-            {"id", "title", "description", "category", "color", "location", "date"},
+            {
+                "id",
+                "title",
+                "description",
+                "category",
+                "color",
+                "location",
+                "date",
+                "photo",
+                "photo_url",
+            },
         )
         self.assertNotIn("status", serializer.fields)
         self.assertNotIn("inventory_status", serializer.fields)
@@ -206,3 +220,179 @@ class PrivacyProtectionTests(SimpleTestCase):
         view = LostItemViewSet()
         view.action = "mine"
         self.assertIsInstance(view.get_permissions()[0], IsAuthenticated)
+
+
+class PhotoUploadTests(SimpleTestCase):
+    """User story: Photo Uploads.
+
+    As a student, I want to upload a photo of my lost item, so that others can
+    identify it more easily.
+    """
+
+    JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+    PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+    WEBP = b"RIFF\x00\x00\x00\x00WEBPVP8 " + b"\x00" * 64
+
+    def upload(self, data, name="photo.jpg", content_type="image/jpeg"):
+        return SimpleUploadedFile(name, data, content_type=content_type)
+
+    # --- Accepting and rejecting files --------------------------------------
+
+    def test_jpeg_png_and_webp_are_accepted(self):
+        for data, expected in (
+            (self.JPEG, "image/jpeg"),
+            (self.PNG, "image/png"),
+            (self.WEBP, "image/webp"),
+        ):
+            photo = ItemSerializer().validate_photo(self.upload(data))
+            self.assertEqual(photo["content_type"], expected)
+            self.assertEqual(photo["data"], data)
+
+    def test_non_images_are_rejected_even_if_renamed(self):
+        fakes = [
+            b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>",
+            b"<html><script>alert(1)</script></html>",
+            b"GIF89a" + b"\x00" * 20,
+            b"just some text",
+        ]
+        for data in fakes:
+            with self.assertRaises(serializers.ValidationError):
+                ItemSerializer().validate_photo(self.upload(data, name="cat.jpg"))
+
+    def test_photos_over_the_size_limit_are_rejected(self):
+        too_big = self.JPEG + b"\x00" * MAX_PHOTO_BYTES
+        with self.assertRaises(serializers.ValidationError):
+            LostItemSerializer().validate_photo(self.upload(too_big))
+
+    # --- Saving -----------------------------------------------------------------
+
+    def test_validated_photo_is_saved_into_the_item_fields(self):
+        validated = {"title": "Keys", "photo": {"data": self.PNG, "content_type": "image/png"}}
+        move_photo_into(validated)
+        self.assertEqual(validated["photo"], self.PNG)
+        self.assertEqual(validated["photo_content_type"], "image/png")
+
+    def test_reports_without_a_photo_still_work(self):
+        validated = {"title": "Keys"}
+        move_photo_into(validated)
+        self.assertEqual(validated, {"title": "Keys"})
+        self.assertFalse(LostItemSerializer().fields["photo"].required)
+
+    # --- Showing photos ---------------------------------------------------------
+
+    def test_photo_bytes_are_never_included_in_responses(self):
+        for serializer in (ItemSerializer(), LostItemSerializer(), StaffItemSerializer()):
+            self.assertTrue(serializer.fields["photo"].write_only)
+            self.assertNotIn("photo_content_type", serializer.fields)
+            self.assertNotIn("photo_version", serializer.fields)
+
+    def test_photo_url_points_to_the_photo_endpoint(self):
+        request = RequestFactory().get("/api/lost-items/")
+        item = Mock(pk="abc123", photo_content_type="image/jpeg", photo_version="v1")
+        serializer = LostItemSerializer(
+            context={"request": request, "view": Mock(basename="lost-items")}
+        )
+        self.assertEqual(
+            serializer.get_photo_url(item),
+            "http://testserver/api/lost-items/abc123/photo/?v=v1",
+        )
+
+    def test_replacing_a_photo_changes_its_url(self):
+        # A new photo_url makes browsers show the new photo right away
+        # instead of a cached copy of the old one.
+        first = {"photo": {"data": self.PNG, "content_type": "image/png"}}
+        second = {"photo": {"data": self.JPEG, "content_type": "image/jpeg"}}
+        move_photo_into(first)
+        move_photo_into(second)
+        self.assertTrue(first["photo_version"])
+        self.assertNotEqual(first["photo_version"], second["photo_version"])
+
+        request = RequestFactory().get("/api/lost-items/")
+        serializer = LostItemSerializer(
+            context={"request": request, "view": Mock(basename="lost-items")}
+        )
+        urls = {
+            serializer.get_photo_url(
+                Mock(pk="abc123", photo_content_type="image/png", photo_version=data["photo_version"])
+            )
+            for data in (first, second)
+        }
+        self.assertEqual(len(urls), 2)
+
+    def test_photo_url_is_empty_when_there_is_no_photo(self):
+        item = Mock(pk="abc123", photo_content_type="")
+        serializer = ItemSerializer(
+            context={"request": RequestFactory().get("/"), "view": Mock(basename="inventory")}
+        )
+        self.assertIsNone(serializer.get_photo_url(item))
+
+    def test_photo_endpoint_serves_image_safely(self):
+        response = photo_response(Mock(photo=self.PNG, photo_content_type="image/png"))
+        self.assertEqual(response["Content-Type"], "image/png")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response.content, self.PNG)
+
+    def test_photo_endpoint_404s_without_a_photo(self):
+        with self.assertRaises(Http404):
+            photo_response(Mock(photo=None, photo_content_type=""))
+
+    def test_photos_are_public_like_the_reports(self):
+        for viewset in (LostItemViewSet, InventoryViewSet):
+            view = viewset()
+            view.action = "photo"
+            self.assertIsInstance(view.get_permissions()[0], AllowAny)
+
+
+class ReportManagementTests(SimpleTestCase):
+    """User story: Report Management.
+
+    As a student, I want to edit or close my lost item report, so that I can
+    keep my information updated if I find my item.
+    """
+
+    def test_owner_can_edit_and_close_but_others_cannot(self):
+        permission = IsOwnerOrSuperUser()
+        report = Mock(reported_by_id=1)
+        cases = [
+            (make_user(1), True),                               # owner
+            (make_user(2), False),                              # another student
+            (make_user(3, is_superuser=True), True),            # staff
+            (make_user(None, is_authenticated=False), False),   # logged out
+        ]
+        for user, allowed in cases:
+            self.assertEqual(
+                permission.has_object_permission(Mock(user=user), None, report),
+                allowed,
+            )
+
+    def test_edit_and_close_require_login_and_ownership(self):
+        for action in ("update", "partial_update", "close"):
+            view = LostItemViewSet()
+            view.action = action
+            permissions = view.get_permissions()
+            self.assertIsInstance(permissions[0], IsAuthenticated)
+            self.assertIsInstance(permissions[1], IsOwnerOrSuperUser)
+
+    def test_closing_a_report_marks_it_returned(self):
+        item = Mock(status="lost")
+        LostItemViewSet.mark_as_closed(item)
+        self.assertEqual(item.status, "returned")
+        item.save.assert_called_once_with(update_fields=["status"])
+
+    def test_closed_reports_leave_the_lost_list(self):
+        # The lost-items list (and My Reports) only include open reports.
+        query = str(LostItemViewSet.queryset.query.where)
+        self.assertIn("lost", query)
+
+    def test_editable_fields_are_the_report_details(self):
+        fields = LostItemSerializer().fields
+        for name in ("title", "description", "category", "color", "location", "date", "photo"):
+            self.assertFalse(fields[name].read_only, name)
+        # Status can't be changed by editing; closing uses its own action.
+        self.assertNotIn("status", fields)
+
+    def test_my_reports_requires_login(self):
+        view = LostItemViewSet()
+        view.action = "mine"
+        self.assertIsInstance(view.get_permissions()[0], IsAuthenticated)
+

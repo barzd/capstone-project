@@ -8,6 +8,7 @@ from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from .models import Item
+from .photos import photo_response
 from .serializers import ItemSerializer, LostItemSerializer, StaffItemSerializer
 
 
@@ -36,12 +37,14 @@ class LostItemViewSet(viewsets.ModelViewSet):
 
     - Browsing reports: anyone (reporter details are never included)
     - Submitting a report: must be logged in
-    - Editing or deleting a report: only its owner or a superuser
+    - Editing, closing, or deleting a report: only its owner or a superuser
     - Resolving a report into inventory: superuser only
-    - /api/lost-items/mine/: the logged-in user's own reports
+    - /api/lost-items/mine/: the logged-in user's own open reports
+    - /api/lost-items/<id>/close/: owner marks the report as resolved
     """
 
-    queryset = Item.objects.filter(status="lost").order_by("-created_at")
+    # defer("photo"): lists don't need the image bytes, only photo_url.
+    queryset = Item.objects.filter(status="lost").defer("photo").order_by("-created_at")
     serializer_class = LostItemSerializer
 
     def get_permissions(self):
@@ -49,7 +52,7 @@ class LostItemViewSet(viewsets.ModelViewSet):
             return [IsSuperUser()]
         if self.action in {"create", "mine"}:
             return [IsAuthenticated()]
-        if self.action in {"update", "partial_update", "destroy"}:
+        if self.action in {"update", "partial_update", "destroy", "close"}:
             return [IsAuthenticated(), IsOwnerOrSuperUser()]
         return [AllowAny()]
 
@@ -57,6 +60,27 @@ class LostItemViewSet(viewsets.ModelViewSet):
         # Always take the reporter from the session, never from the request
         # body, so nobody can submit a report as someone else.
         serializer.save(reported_by=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def close(self, request, pk=None):
+        """Owner closes their report (e.g. they found the item).
+
+        The report is kept for records but marked "returned", so it no longer
+        appears in the public Lost Items list or in My Reports.
+        """
+        item = self.get_object()  # runs the owner-or-superuser check
+        self.mark_as_closed(item)
+        return Response(self.get_serializer(item).data)
+
+    @staticmethod
+    def mark_as_closed(item):
+        item.status = "returned"
+        item.save(update_fields=["status"])
+
+    @action(detail=True, methods=["get"])
+    def photo(self, request, pk=None):
+        """The report's photo (public, like the report itself)."""
+        return photo_response(self.get_object())
 
     @action(detail=False, methods=["get"])
     def mine(self, request):
@@ -98,7 +122,7 @@ class InventoryViewSet(
     permission_classes = [IsSuperUser]
 
     def get_permissions(self):
-        if self.action in {"list", "retrieve"}:
+        if self.action in {"list", "retrieve", "photo"}:
             return [AllowAny()]
         if self.action == "create":
             return [IsAuthenticated()]
@@ -122,5 +146,11 @@ class InventoryViewSet(
             reported_by=self.request.user,
         )
 
+    @action(detail=True, methods=["get"])
+    def photo(self, request, pk=None):
+        """The found item's photo (public, like the inventory list)."""
+        return photo_response(self.get_object())
+
     def get_queryset(self):
-        return Item.objects.filter(status="found").order_by("-created_at")
+        # defer("photo"): lists don't need the image bytes, only photo_url.
+        return Item.objects.filter(status="found").defer("photo").order_by("-created_at")
