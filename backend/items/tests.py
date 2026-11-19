@@ -284,17 +284,40 @@ class PhotoUploadTests(SimpleTestCase):
         for serializer in (ItemSerializer(), LostItemSerializer(), StaffItemSerializer()):
             self.assertTrue(serializer.fields["photo"].write_only)
             self.assertNotIn("photo_content_type", serializer.fields)
+            self.assertNotIn("photo_version", serializer.fields)
 
     def test_photo_url_points_to_the_photo_endpoint(self):
         request = RequestFactory().get("/api/lost-items/")
-        item = Mock(pk="abc123", photo_content_type="image/jpeg")
+        item = Mock(pk="abc123", photo_content_type="image/jpeg", photo_version="v1")
         serializer = LostItemSerializer(
             context={"request": request, "view": Mock(basename="lost-items")}
         )
         self.assertEqual(
             serializer.get_photo_url(item),
-            "http://testserver/api/lost-items/abc123/photo/",
+            "http://testserver/api/lost-items/abc123/photo/?v=v1",
         )
+
+    def test_replacing_a_photo_changes_its_url(self):
+        # A new photo_url makes browsers show the new photo right away
+        # instead of a cached copy of the old one.
+        first = {"photo": {"data": self.PNG, "content_type": "image/png"}}
+        second = {"photo": {"data": self.JPEG, "content_type": "image/jpeg"}}
+        move_photo_into(first)
+        move_photo_into(second)
+        self.assertTrue(first["photo_version"])
+        self.assertNotEqual(first["photo_version"], second["photo_version"])
+
+        request = RequestFactory().get("/api/lost-items/")
+        serializer = LostItemSerializer(
+            context={"request": request, "view": Mock(basename="lost-items")}
+        )
+        urls = {
+            serializer.get_photo_url(
+                Mock(pk="abc123", photo_content_type="image/png", photo_version=data["photo_version"])
+            )
+            for data in (first, second)
+        }
+        self.assertEqual(len(urls), 2)
 
     def test_photo_url_is_empty_when_there_is_no_photo(self):
         item = Mock(pk="abc123", photo_content_type="")
@@ -318,4 +341,58 @@ class PhotoUploadTests(SimpleTestCase):
             view = viewset()
             view.action = "photo"
             self.assertIsInstance(view.get_permissions()[0], AllowAny)
+
+
+class ReportManagementTests(SimpleTestCase):
+    """User story: Report Management.
+
+    As a student, I want to edit or close my lost item report, so that I can
+    keep my information updated if I find my item.
+    """
+
+    def test_owner_can_edit_and_close_but_others_cannot(self):
+        permission = IsOwnerOrSuperUser()
+        report = Mock(reported_by_id=1)
+        cases = [
+            (make_user(1), True),                               # owner
+            (make_user(2), False),                              # another student
+            (make_user(3, is_superuser=True), True),            # staff
+            (make_user(None, is_authenticated=False), False),   # logged out
+        ]
+        for user, allowed in cases:
+            self.assertEqual(
+                permission.has_object_permission(Mock(user=user), None, report),
+                allowed,
+            )
+
+    def test_edit_and_close_require_login_and_ownership(self):
+        for action in ("update", "partial_update", "close"):
+            view = LostItemViewSet()
+            view.action = action
+            permissions = view.get_permissions()
+            self.assertIsInstance(permissions[0], IsAuthenticated)
+            self.assertIsInstance(permissions[1], IsOwnerOrSuperUser)
+
+    def test_closing_a_report_marks_it_returned(self):
+        item = Mock(status="lost")
+        LostItemViewSet.mark_as_closed(item)
+        self.assertEqual(item.status, "returned")
+        item.save.assert_called_once_with(update_fields=["status"])
+
+    def test_closed_reports_leave_the_lost_list(self):
+        # The lost-items list (and My Reports) only include open reports.
+        query = str(LostItemViewSet.queryset.query.where)
+        self.assertIn("lost", query)
+
+    def test_editable_fields_are_the_report_details(self):
+        fields = LostItemSerializer().fields
+        for name in ("title", "description", "category", "color", "location", "date", "photo"):
+            self.assertFalse(fields[name].read_only, name)
+        # Status can't be changed by editing; closing uses its own action.
+        self.assertNotIn("status", fields)
+
+    def test_my_reports_requires_login(self):
+        view = LostItemViewSet()
+        view.action = "mine"
+        self.assertIsInstance(view.get_permissions()[0], IsAuthenticated)
 

@@ -17,6 +17,8 @@ type ChoiceFieldProps = {
   otherLabel: string
   otherPlaceholder: string
   otherMaxLength?: number
+  /** Value to start with, e.g. when editing a saved report. */
+  defaultValue?: string
 }
 
 /**
@@ -33,8 +35,13 @@ export default function ChoiceField({
   otherLabel,
   otherPlaceholder,
   otherMaxLength = 100,
+  defaultValue = "",
 }: ChoiceFieldProps) {
-  const [selected, setSelected] = useState("")
+  // A saved value that isn't one of the choices goes in the "Other" box.
+  const isListed = [...options, ...extraOptions].includes(defaultValue)
+  const [selected, setSelected] = useState(
+    !defaultValue ? "" : isListed ? defaultValue : OTHER_OPTION,
+  )
 
   return (
     <>
@@ -65,6 +72,7 @@ export default function ChoiceField({
             autoComplete="off"
             className={inputClass}
             maxLength={otherMaxLength}
+            defaultValue={!isListed ? defaultValue : undefined}
             name={`${name}_other`}
             placeholder={otherPlaceholder}
             required
@@ -91,7 +99,24 @@ export function readLocation(formData: FormData): string {
   return details ? `${place} - ${details}` : place
 }
 
-export function LocationDetailsField() {
+/**
+ * Split a saved location like "Greenley Library - 2nd floor" back into the
+ * dropdown choice and the "Where exactly?" details.
+ */
+export function splitLocation(
+  location: string,
+  places: string[],
+): { place: string; details: string } {
+  for (const place of places) {
+    if (location === place) return { place, details: "" }
+    if (location.startsWith(`${place} - `)) {
+      return { place, details: location.slice(place.length + 3) }
+    }
+  }
+  return { place: location, details: "" }
+}
+
+export function LocationDetailsField({ defaultValue = "" }: { defaultValue?: string }) {
   return (
     <label className={labelClass}>
       Where exactly? (optional)
@@ -99,6 +124,7 @@ export function LocationDetailsField() {
         autoComplete="off"
         className={inputClass}
         maxLength={120}
+        defaultValue={defaultValue}
         name="location_details"
         placeholder="e.g. 2nd floor, near the printers"
       />
