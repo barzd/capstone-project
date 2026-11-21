@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { ItemPhoto } from "./PhotoField"
+import ItemQRCode from "./ItemQRCode"
 
 const imgPackageCheck = `${import.meta.env.BASE_URL}assets/c05e7.svg`
 
@@ -838,6 +839,7 @@ function InventoryScreen() {
                   <th className="px-6 py-3">Date found</th>
                   <th className="px-6 py-3">Storage location</th>
                   <th className="px-6 py-3">Item ID</th>
+                  <th className="px-6 py-3">QR code</th>
                   <th className="px-6 py-3">
                     <span className="sr-only">Actions</span>
                   </th>
@@ -875,6 +877,9 @@ function InventoryScreen() {
                       <code className="inventory-item-id inline-block max-w-[190px] break-all rounded-md border border-[#dce3e0] bg-[#f8faf9] px-2.5 py-1.5 font-mono text-xs text-[#334155]">
                         {item.id}
                       </code>
+                    </td>
+                    <td className="px-6 py-4">
+                      <ItemQRCode itemId={item.id} size={88} title={item.title} />
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button

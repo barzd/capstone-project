@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { ItemPhoto } from "./PhotoField"
+import ItemQRCode from "./ItemQRCode"
 import MyReports from "./MyReports"
 
 const apiBaseUrl = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "")
@@ -90,12 +91,14 @@ function ReportSection({
   items,
   isLoading,
   error,
+  showQrCodes,
 }: {
   title: string
   description: string
   items: ReportItem[]
   isLoading: boolean
   error: string | null
+  showQrCodes: boolean
 }) {
   return (
     <section className="overflow-hidden rounded-3xl border border-[#dce9e3] bg-white shadow-sm">
@@ -151,11 +154,16 @@ function ReportSection({
                 )}
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-xs text-[#64748b]">
-                <span>{formatDate(item.date)}</span>
-                <code className="max-w-40 break-all rounded-md border border-[#dce3e0] bg-[#f8faf9] px-2 py-1 font-mono">
-                  {item.id}
-                </code>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-[#64748b]">
+                <div className="flex items-center gap-3">
+                  <span>{formatDate(item.date)}</span>
+                  <code className="max-w-40 break-all rounded-md border border-[#dce3e0] bg-[#f8faf9] px-2 py-1 font-mono">
+                    {item.id}
+                  </code>
+                </div>
+                {showQrCodes && (
+                  <ItemQRCode itemId={item.id} size={88} title={item.title} />
+                )}
               </div>
             </li>
           ))}
@@ -308,6 +316,7 @@ export default function ReportsScreen() {
         error={error}
         isLoading={isLoading}
         items={visibleItems}
+        showQrCodes={!showingLostItems}
         title={title}
       />
       )}
