@@ -5,6 +5,7 @@ const CampusMap = lazy(() => import("./CampusMap"))
 import FoundItemReport from "./FoundItemReport"
 import LostItemReport from "./LostItemReport"
 import ReportsScreen from "./Reports"
+import ItemCheckout from "./ItemCheckout"
 
 const assetPathPrefix = `${import.meta.env.BASE_URL}assets`
 const imgHomeIcon = `${assetPathPrefix}/6c43b.svg`
@@ -91,8 +92,8 @@ type PageContent = {
   icon: string
   gradient: string
   tint: string
- stats: { value: string, label: string }[]
-  highlights: { title: string, description: string }[]
+  stats: { value: string; label: string }[]
+  highlights: { title: string; description: string }[]
   action: string
   panelLabel: string
   panelTitle: string
@@ -500,7 +501,11 @@ function Sidebar({
   onSelect: (id: string) => void
 }) {
   return (
-    <aside className={`minimal-scrollbar min-h-0 w-full shrink-0 overflow-y-auto overscroll-contain border-b border-[#d1fae5] bg-white px-4 py-6 md:w-[280px] md:border-r md:border-b-0 ${activeItem === "campus-map" ? "max-h-[35dvh] md:max-h-none" : ""}`}>
+    <aside
+      className={`minimal-scrollbar min-h-0 w-full shrink-0 overflow-y-auto overscroll-contain border-b border-[#d1fae5] bg-white px-4 py-6 md:w-[280px] md:border-r md:border-b-0 ${
+        activeItem === "campus-map" ? "max-h-[35dvh] md:max-h-none" : ""
+      }`}
+    >
       <div className="flex flex-col gap-7">
         <div className="flex items-center gap-2.5 pl-2">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#006456]">
@@ -656,7 +661,9 @@ function LoginScreen({
         credentials: "include",
       })
       if (!csrfResponse.ok) {
-        setFormError("Could not get a CSRF token from Django. Reload and try again.")
+        setFormError(
+          "Could not get a CSRF token from Django. Reload and try again.",
+        )
         return
       }
       const { csrfToken } = await csrfResponse.json()
@@ -718,12 +725,12 @@ function LoginScreen({
   return (
     <main
       className="relative flex min-h-screen items-center justify-center bg-cover bg-center px-5 py-10"
-      style={{ backgroundImage: `url('${assetPathPrefix}/fsc-campus-login.jpg')` }}
+      style={{
+        backgroundImage: `url('${assetPathPrefix}/fsc-campus-login.jpg')`,
+      }}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/5 via-transparent to-emerald-950/35" />
-      <section
-        className="relative z-10 w-full max-w-[420px] rounded-md border border-black/15 bg-white p-7 shadow-2xl sm:p-9"
-      >
+      <section className="relative z-10 w-full max-w-[420px] rounded-md border border-black/15 bg-white p-7 shadow-2xl sm:p-9">
         <div className="text-center">
           <p className="font-['Outfit:Bold'] text-[30px] leading-tight font-bold text-[#006747]">
             FSC Lost &amp; Found
@@ -759,7 +766,11 @@ function LoginScreen({
             className="mt-1.5 w-full rounded border border-[#9ca3af] bg-white px-3 py-2.5 font-['Figtree:Medium'] text-sm font-medium text-[#17212b] outline-none transition-shadow placeholder:text-[#94a3b8] focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/20"
             id="login-identifier"
             onChange={(event) => setIdentifier(event.target.value)}
-            placeholder={isRegistering ? "Choose a username" : "Enter your username or email"}
+            placeholder={
+              isRegistering
+                ? "Choose a username"
+                : "Enter your username or email"
+            }
             required
             type="text"
             value={identifier}
@@ -804,7 +815,7 @@ function LoginScreen({
               value={password}
             />
           </div>
-                      {!isRegistering && (
+          {!isRegistering && (
             <div className="mt-2 text-right">
               <a
                 href={`${API_BASE_URL}/forgot-password/`}
@@ -887,7 +898,12 @@ function LoginScreen({
           }}
           type="button"
         >
-          <span aria-hidden="true" className="font-['Outfit:Bold'] text-lg font-bold text-[#4285f4]">G</span>
+          <span
+            aria-hidden="true"
+            className="font-['Outfit:Bold'] text-lg font-bold text-[#4285f4]"
+          >
+            G
+          </span>
           Continue with Google
         </button>
       </section>
@@ -916,7 +932,9 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
           signal: controller.signal,
         })
         if (!response.ok) {
-          throw new Error(`Could not load item count (HTTP ${response.status}).`)
+          throw new Error(
+            `Could not load item count (HTTP ${response.status}).`,
+          )
         }
 
         const payload: unknown = await response.json()
@@ -947,11 +965,7 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
       }
     }
 
-    void loadCount(
-      lostItemsApiUrl,
-      setLostItemCount,
-      setLostItemsError,
-    )
+    void loadCount(lostItemsApiUrl, setLostItemCount, setLostItemsError)
     void loadCount(inventoryApiUrl, setFoundItemCount, setFoundItemsError)
 
     return () => controller.abort()
@@ -967,29 +981,29 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
             Welcome to FSC Lost &amp; Found
           </p>
           <div className="max-w-2xl">
-          <p className="mt-3 font-['Outfit:Bold'] text-4xl leading-tight font-bold sm:text-5xl">
-            Let&apos;s get your item back where it belongs.
-          </p>
-          <p className="mt-4 max-w-xl font-['Figtree:Medium'] text-base leading-7 font-medium text-emerald-50/90">
-            Report a missing item, help return something you found, or explore
-            current reports from across the Farmingdale campus.
-          </p>
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <button
-              className="home-hero-primary-button cursor-pointer rounded-xl bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] shadow-lg transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-              onClick={() => onSelect("report-lost")}
-              type="button"
-            >
-              Report a lost item
-            </button>
-            <button
-              className="cursor-pointer rounded-xl border border-white/40 bg-white/10 px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
-              onClick={() => onSelect("report-found")}
-              type="button"
-            >
-              I found something
-            </button>
-          </div>
+            <p className="mt-3 font-['Outfit:Bold'] text-4xl leading-tight font-bold sm:text-5xl">
+              Let&apos;s get your item back where it belongs.
+            </p>
+            <p className="mt-4 max-w-xl font-['Figtree:Medium'] text-base leading-7 font-medium text-emerald-50/90">
+              Report a missing item, help return something you found, or explore
+              current reports from across the Farmingdale campus.
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <button
+                className="home-hero-primary-button cursor-pointer rounded-xl bg-white px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-[#006747] shadow-lg transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                onClick={() => onSelect("report-lost")}
+                type="button"
+              >
+                Report a lost item
+              </button>
+              <button
+                className="cursor-pointer rounded-xl border border-white/40 bg-white/10 px-5 py-3 font-['Figtree:SemiBold'] text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                onClick={() => onSelect("report-found")}
+                type="button"
+              >
+                I found something
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -997,12 +1011,22 @@ function HomeScreen({ onSelect }: { onSelect: (id: string) => void }) {
       <section className="grid gap-4 sm:grid-cols-2">
         {[
           {
-            value: lostItemCount === null ? (lostItemsError ? "—" : "…") : lostItemCount,
+            value:
+              lostItemCount === null
+                ? lostItemsError
+                  ? "—"
+                  : "…"
+                : lostItemCount,
             label: "Lost items",
             detail: lostItemsError ?? "Open lost reports",
           },
           {
-            value: foundItemCount === null ? (foundItemsError ? "—" : "…") : foundItemCount,
+            value:
+              foundItemCount === null
+                ? foundItemsError
+                  ? "—"
+                  : "…"
+                : foundItemCount,
             label: "Found items",
             detail: foundItemsError ?? "Items in inventory",
           },
@@ -1551,7 +1575,8 @@ function ExampleChat({ onClose }: { onClose: () => void }) {
 // Change the backend address with VITE_API_URL in frontend/.env if needed.
 // ---------------------------------------------------------------------------
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ?? `http://${window.location.hostname}:8000`
 if (
   typeof window !== "undefined" &&
   window.location.hostname === "localhost" &&
@@ -1618,23 +1643,20 @@ const emptyItemReport: ItemReportForm = {
 }
 
 // Wording that differs between the lost and found forms.
-const reportCopy: Record<
-  ReportKind,
-  {
-    pageId: string
-    formTitle: string
-    titlePlaceholder: string
-    locationLabel: string
-    locationError: string
-    dateLabel: string
-    dateError: string
-    descriptionLabel: string
-    descriptionPlaceholder: string
-    submitLabel: string
-    successTitle: (title: string) => string
-    successText: string
-  }
-> = {
+const reportCopy: Record<ReportKind, {
+  pageId: string
+  formTitle: string
+  titlePlaceholder: string
+  locationLabel: string
+  locationError: string
+  dateLabel: string
+  dateError: string
+  descriptionLabel: string
+  descriptionPlaceholder: string
+  submitLabel: string
+  successTitle: (title: string) => string
+  successText: string
+}> = {
   lost: {
     pageId: "report-lost",
     formTitle: "What did you lose?",
@@ -1700,7 +1722,8 @@ function ItemReportScreen({
   onDone: () => void
 }) {
   const [form, setForm] = useState<ItemReportForm>(emptyItemReport)
-  const [errors, setErrors] = useState<Partial<Record<keyof ItemReportForm, string>>>({})
+  const [errors, setErrors] =
+    useState<Partial<Record<keyof ItemReportForm, string>>>({})
   const [submitting, setSubmitting] = useState(false)
   const [serverError, setServerError] = useState("")
   const [savedItem, setSavedItem] = useState<SavedItem | null>(null)
@@ -1723,8 +1746,10 @@ function ItemReportScreen({
     if (form.location === "Other" && !form.otherLocation.trim())
       next.otherLocation = "Describe the location."
     if (!form.date) next.date = copy.dateError
-    else if (form.date > todayIso()) next.date = "The date can't be in the future."
-    if (isFound && !form.dropOff) next.dropOff = "Choose where you'll hand it in."
+    else if (form.date > todayIso())
+      next.date = "The date can't be in the future."
+    if (isFound && !form.dropOff)
+      next.dropOff = "Choose where you'll hand it in."
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -1750,23 +1775,33 @@ function ItemReportScreen({
 
     setSubmitting(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/${isFound ? "inventory" : "lost-items"}/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
+      const response = await fetch(
+        `${API_BASE_URL}/api/${isFound ? "inventory" : "lost-items"}/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      )
       if (!response.ok) {
         const body = await response.json().catch(() => null)
         const detail =
           body && typeof body === "object"
             ? Object.entries(body)
-                .map(([field, messages]) =>
-                  `${field}: ${Array.isArray(messages) ? messages.join(" ") : String(messages)}`,
+                .map(
+                  ([field, messages]) =>
+                    `${field}: ${
+                      Array.isArray(messages)
+                        ? messages.join(" ")
+                        : String(messages)
+                    }`,
                 )
                 .join(" · ")
             : ""
         setServerError(
-          `The server couldn't save your report (error ${response.status}).${detail ? ` ${detail}` : ""}`,
+          `The server couldn't save your report (error ${response.status}).${
+            detail ? ` ${detail}` : ""
+          }`,
         )
         return
       }
@@ -1796,7 +1831,9 @@ function ItemReportScreen({
         ["Color", savedItem.color || "—"],
         [isFound ? "Found at" : "Last seen", savedItem.location],
         [copy.dateLabel, formatReportDate(savedItem.date)],
-        ...(isFound ? ([["Drop off at", savedDropOff]] as [string, string][]) : []),
+        ...(isFound
+          ? [["Drop off at", savedDropOff]] as [string, string][]
+          : []),
         ["Report ID", savedItem.id],
       ]
     : []
@@ -1809,7 +1846,11 @@ function ItemReportScreen({
         <div className="absolute -top-16 -right-12 size-52 rounded-full border-[32px] border-white/10" />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
           <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
-            <img alt="" className="size-8 brightness-0 invert" src={content.icon} />
+            <img
+              alt=""
+              className="size-8 brightness-0 invert"
+              src={content.icon}
+            />
           </span>
           <div className="max-w-3xl">
             <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.16em] text-white/75 uppercase">
@@ -1829,7 +1870,11 @@ function ItemReportScreen({
         <section className="rounded-3xl border border-[#dce9e3] bg-white p-6 shadow-sm sm:p-8">
           <div className="flex items-start gap-4">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#006747]">
-              <img alt="" className="size-6 brightness-0 invert" src={content.icon} />
+              <img
+                alt=""
+                className="size-6 brightness-0 invert"
+                src={content.icon}
+              />
             </span>
             <div>
               <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
@@ -1914,7 +1959,9 @@ function ItemReportScreen({
                   placeholder={copy.titlePlaceholder}
                   value={form.title}
                 />
-                {errors.title && <p className={fieldErrorClass}>{errors.title}</p>}
+                {errors.title && (
+                  <p className={fieldErrorClass}>{errors.title}</p>
+                )}
               </div>
 
               <div>
@@ -1983,19 +2030,27 @@ function ItemReportScreen({
                   type="date"
                   value={form.date}
                 />
-                {errors.date && <p className={fieldErrorClass}>{errors.date}</p>}
+                {errors.date && (
+                  <p className={fieldErrorClass}>{errors.date}</p>
+                )}
               </div>
 
               {form.location === "Other" && (
                 <div className="sm:col-span-2">
-                  <label className={fieldLabelClass} htmlFor={`${kind}-other-location`}>
-                    Describe the location <span className="text-red-600">*</span>
+                  <label
+                    className={fieldLabelClass}
+                    htmlFor={`${kind}-other-location`}
+                  >
+                    Describe the location{" "}
+                    <span className="text-red-600">*</span>
                   </label>
                   <input
                     className={fieldInputClass}
                     id={`${kind}-other-location`}
                     maxLength={200}
-                    onChange={(event) => update("otherLocation", event.target.value)}
+                    onChange={(event) =>
+                      update("otherLocation", event.target.value)
+                    }
                     placeholder="e.g. Bench outside the bookstore"
                     value={form.otherLocation}
                   />
@@ -2008,7 +2063,8 @@ function ItemReportScreen({
               {isFound && (
                 <div className="sm:col-span-2">
                   <label className={fieldLabelClass} htmlFor="found-dropoff">
-                    Where will you hand it in? <span className="text-red-600">*</span>
+                    Where will you hand it in?{" "}
+                    <span className="text-red-600">*</span>
                   </label>
                   <select
                     className={fieldInputClass}
@@ -2033,13 +2089,18 @@ function ItemReportScreen({
               )}
 
               <div className="sm:col-span-2">
-                <label className={fieldLabelClass} htmlFor={`${kind}-description`}>
+                <label
+                  className={fieldLabelClass}
+                  htmlFor={`${kind}-description`}
+                >
                   {copy.descriptionLabel}
                 </label>
                 <textarea
                   className={`${fieldInputClass} min-h-28 resize-y`}
                   id={`${kind}-description`}
-                  onChange={(event) => update("description", event.target.value)}
+                  onChange={(event) =>
+                    update("description", event.target.value)
+                  }
                   placeholder={copy.descriptionPlaceholder}
                   value={form.description}
                 />
@@ -2227,13 +2288,16 @@ function SectionScreen({ content }: { content: PageContent }) {
 }
 
 export default function App() {
-  const authReturn = new URLSearchParams(window.location.search).get("auth")
-  const returningFromAdmin =
-    new URLSearchParams(window.location.search).get("admin_inventory") === "1"
+  const searchParams = new URLSearchParams(window.location.search)
+  const authReturn = searchParams.get("auth")
+  const checkoutItemId =
+    searchParams.get("checkout") ?? searchParams.get("claim")
+  const returningFromAdmin = searchParams.get("admin_inventory") === "1"
   const [isLoggedIn, setIsLoggedIn] = useState(returningFromAdmin)
   const [username, setUsername] = useState<string | null>(null)
   const [authError, setAuthError] = useState("")
   const [activeItem, setActiveItem] = useState(() => {
+    if (checkoutItemId) return "checkout-item"
     if (returningFromAdmin) return "inventory"
     const savedPage = localStorage.getItem("fsc-active-page")
     return savedPage && persistentPageIds.has(savedPage) ? savedPage : "home"
@@ -2253,7 +2317,9 @@ export default function App() {
       signal,
     })
     if (!response.ok) {
-      throw new Error(`Django could not load the current user (HTTP ${response.status}).`)
+      throw new Error(
+        `Django could not load the current user (HTTP ${response.status}).`,
+      )
     }
 
     const user: unknown = await response.json()
@@ -2277,7 +2343,9 @@ export default function App() {
         const currentUsername = await loadCurrentUsername(controller.signal)
         setUsername(currentUsername)
         setIsLoggedIn(true)
-        if (authReturn === "google") setActiveItem("home")
+        if (authReturn === "google") {
+          setActiveItem(checkoutItemId ? "checkout-item" : "home")
+        }
       } catch (error) {
         if (controller.signal.aborted) return
         if (authReturn === "google") {
@@ -2302,13 +2370,14 @@ export default function App() {
 
     void checkDjangoSession()
     return () => controller.abort()
-  }, [authReturn, returningFromAdmin])
+  }, [authReturn, checkoutItemId, returningFromAdmin])
 
   useEffect(() => {
     localStorage.setItem("fsc-dark-mode", String(darkMode))
   }, [darkMode])
 
   useEffect(() => {
+    if (activeItem === "checkout-item") return
     localStorage.setItem("fsc-active-page", activeItem)
   }, [activeItem])
 
@@ -2330,6 +2399,16 @@ export default function App() {
     localStorage.setItem("fsc-font-size", fontSize)
   }, [fontSize])
 
+  if (checkoutItemId) {
+    return (
+      <div className="min-h-screen bg-[#f8faf9] p-5 sm:p-8 lg:p-10">
+        <div className="mx-auto w-full max-w-3xl">
+          <ItemCheckout itemId={checkoutItemId} />
+        </div>
+      </div>
+    )
+  }
+
   if (!isLoggedIn) {
     return (
       <LoginScreen
@@ -2346,12 +2425,16 @@ export default function App() {
 
   return (
     <div
-      className={`flex min-h-screen flex-col bg-[#f8faf9] ${activeItem === "campus-map" ? "h-dvh min-h-0 overflow-hidden" : ""} ${
-        darkMode ? "theme-dark" : ""
-      }`}
+      className={`flex min-h-screen flex-col bg-[#f8faf9] ${
+        activeItem === "campus-map" ? "h-dvh min-h-0 overflow-hidden" : ""
+      } ${darkMode ? "theme-dark" : ""}`}
     >
       <TopBar username={username ?? "Loading username…"} />
-      <div className={`flex flex-1 flex-col md:flex-row ${activeItem === "campus-map" ? "min-h-0 overflow-hidden" : ""}`}>
+      <div
+        className={`flex flex-1 flex-col md:flex-row ${
+          activeItem === "campus-map" ? "min-h-0 overflow-hidden" : ""
+        }`}
+      >
         <Sidebar
           activeItem={activeItem}
           onLogout={async () => {
@@ -2368,7 +2451,9 @@ export default function App() {
               })
 
               if (!response.ok) {
-                setAuthError("Django could not end the session. Sign in again after refreshing.")
+                setAuthError(
+                  "Django could not end the session. Sign in again after refreshing.",
+                )
               }
             } catch {
               setAuthError("Could not reach Django to end the session.")
@@ -2379,13 +2464,25 @@ export default function App() {
           }}
           onSelect={setActiveItem}
         />
-        <main className={`flex min-w-0 flex-1 justify-center ${activeItem === "campus-map" ? "min-h-0 overflow-hidden" : "items-start p-5 sm:p-8 lg:p-10"}`}>
+        <main
+          className={`flex min-w-0 flex-1 justify-center ${
+            activeItem === "campus-map"
+              ? "min-h-0 overflow-hidden"
+              : "items-start p-5 sm:p-8 lg:p-10"
+          }`}
+        >
           {activeItem === "home" ? (
             <HomeScreen onSelect={setActiveItem} />
           ) : activeItem === "inventory" ? (
             <InventoryScreen />
           ) : activeItem === "campus-map" ? (
-            <Suspense fallback={<p className="p-8 text-sm text-[#64748b]">Loading campus map…</p>}>
+            <Suspense
+              fallback={
+                <p className="p-8 text-sm text-[#64748b]">
+                  Loading campus map…
+                </p>
+              }
+            >
               <CampusMap />
             </Suspense>
           ) : activeItem === "report-lost" ? (
@@ -2393,7 +2490,9 @@ export default function App() {
           ) : activeItem === "report-list" ? (
             <ReportsScreen />
           ) : activeItem === "report-found" ? (
-            <FoundItemReport onOpenInventory={() => setActiveItem("inventory")} />
+            <FoundItemReport
+              onOpenInventory={() => setActiveItem("inventory")}
+            />
           ) : activeItem === "recently-resolved" ? (
             <ResolvedReportsScreen
               onBrowseActiveReports={() => setActiveItem("report-list")}

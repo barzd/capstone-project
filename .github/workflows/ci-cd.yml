@@ -93,7 +93,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: backend/.venv
-          key: venv-${{ runner.os }}-py${{ steps.python.outputs.python-version }}-${{ hashFiles('backend/requirements.txt') }}
+          key: venv-${{ runner.os }}-py${{ steps.python.outputs.python-version }}-${{ hashFiles('backend/requirements.txt', 'backend/requirements-test.txt') }}
 
       - name: Install backend dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
@@ -101,7 +101,7 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/pip install -r requirements.txt
+          .venv/bin/pip install -r requirements-test.txt
 
       - name: Verify backend dependencies
         working-directory: backend
@@ -142,7 +142,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: backend/.venv
-          key: venv-${{ runner.os }}-py${{ steps.python.outputs.python-version }}-${{ hashFiles('backend/requirements.txt') }}
+          key: venv-${{ runner.os }}-py${{ steps.python.outputs.python-version }}-${{ hashFiles('backend/requirements.txt', 'backend/requirements-test.txt') }}
           fail-on-cache-miss: true
 
       - name: Restore frontend node_modules
@@ -165,6 +165,13 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
         run: .venv/bin/python manage.py test items --verbosity 2
+
+      - name: Run QR inventory endpoint pytest
+        working-directory: backend
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        run: .venv/bin/python -m pytest items/test_qr_inventory.py
 
       - name: Build frontend
         working-directory: frontend

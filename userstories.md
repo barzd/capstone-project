@@ -26,12 +26,11 @@ Help owners find their items quickly through search and smart matching.
 - ~~**Search Filters:** As a student, I want to filter items by category, color, location, and date, so that I can find possible matches more easily.~~
 - **Match Notifications:** As a student, I want to receive a notification when a possible match is found, so that I can check if my item has been turned in.
 
-## Epic 4: Claims & Verification
-Make sure items are returned only to their real owners.
+## Epic 4: Item Checkout Logging
+Keep a staff-only record of found-item pickups.
 
-- **Claim Submission:** As a student, I want to submit a claim for an item I believe belongs to me, so that staff can verify my ownership.
-- **Claims & Verification:** As campus staff, I want to verify a user's ownership claim, so that items are returned to the correct person.
-- **Claim Status:** As a student, I want to check the status of my claim, so that I know whether it has been approved or rejected.
+- **QR Checkout Form:** As a student checking out an item, I want to scan its QR code and enter my name and checkout date, so my pickup is recorded.
+- **Staff Checkout Log:** As campus staff, I want to view the student's name, checkout date, and item name, so I can keep a record of pickups.
 
 ## Epic 5: Pickup & Recovery
 Guide verified owners through getting their item back.

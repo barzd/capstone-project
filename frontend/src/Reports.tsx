@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react"
 import { ItemPhoto } from "./PhotoField"
-import ItemQRCode from "./ItemQRCode"
 import MyReports from "./MyReports"
 
-const apiBaseUrl = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "")
+const apiBaseUrl = (
+  import.meta.env.VITE_API_URL ?? `http://${window.location.hostname}:8000`
+).replace(/\/$/, "")
 const lostItemsApiUrl = `${apiBaseUrl}/api/lost-items/`
 const inventoryApiUrl = `${apiBaseUrl}/api/inventory/`
 
@@ -91,14 +92,12 @@ function ReportSection({
   items,
   isLoading,
   error,
-  showQrCodes,
 }: {
   title: string
   description: string
   items: ReportItem[]
   isLoading: boolean
   error: string | null
-  showQrCodes: boolean
 }) {
   return (
     <section className="overflow-hidden rounded-3xl border border-[#dce9e3] bg-white shadow-sm">
@@ -161,9 +160,6 @@ function ReportSection({
                     {item.id}
                   </code>
                 </div>
-                {showQrCodes && (
-                  <ItemQRCode itemId={item.id} size={88} title={item.title} />
-                )}
               </div>
             </li>
           ))}
@@ -316,7 +312,6 @@ export default function ReportsScreen() {
         error={error}
         isLoading={isLoading}
         items={visibleItems}
-        showQrCodes={!showingLostItems}
         title={title}
       />
       )}

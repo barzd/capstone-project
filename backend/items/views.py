@@ -1,5 +1,4 @@
-from rest_framework import viewsets
-from rest_framework import mixins
+from rest_framework import mixins, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.decorators import action
@@ -7,9 +6,17 @@ from rest_framework.response import Response
 from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
-from .models import Item
+from .models import Item, ItemCheckout
 from .photos import photo_response
-from .serializers import ItemSerializer, LostItemSerializer, StaffItemSerializer
+from .serializers import (
+    CheckoutItemInfoSerializer,
+    ItemCheckoutCreateSerializer,
+    ItemCheckoutReceiptSerializer,
+    ItemSerializer,
+    LostItemSerializer,
+    StaffItemCheckoutSerializer,
+    StaffItemSerializer,
+)
 
 
 class IsSuperUser(BasePermission):
@@ -122,7 +129,14 @@ class InventoryViewSet(
     permission_classes = [IsSuperUser]
 
     def get_permissions(self):
-        if self.action in {"list", "retrieve", "photo"}:
+        if self.action == "staff":
+            return [IsSuperUser()]
+        if self.action in {
+            "list",
+            "retrieve",
+            "photo",
+            "checkout_info",
+        }:
             return [AllowAny()]
         if self.action == "create":
             return [IsAuthenticated()]
@@ -153,4 +167,62 @@ class InventoryViewSet(
 
     def get_queryset(self):
         # defer("photo"): lists don't need the image bytes, only photo_url.
-        return Item.objects.filter(status="found").defer("photo").order_by("-created_at")
+        queryset = Item.objects.filter(status="found")
+        if self.action == "checkout_info":
+            queryset = queryset.filter(
+                inventory_status__in=["available", "claimed"]
+            )
+        return queryset.defer("photo").order_by("-created_at")
+
+    @action(detail=False, methods=["get"])
+    def staff(self, request):
+        items = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(items, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="checkout-info")
+    def checkout_info(self, request, pk=None):
+        item = self.get_object()
+        if ItemCheckout.objects.filter(item=item).exists():
+            return Response(
+                {"detail": "This item already has a checkout record."},
+                status=409,
+            )
+        serializer = CheckoutItemInfoSerializer(
+            item,
+            context=self.get_serializer_context(),
+        )
+        return Response(serializer.data)
+
+
+class ItemCheckoutViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = ItemCheckout.objects.all().order_by("-recorded_at")
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [AllowAny()]
+        return [IsSuperUser()]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return ItemCheckoutCreateSerializer
+        return StaffItemCheckoutSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        item = serializer.validated_data["item"]
+        item.inventory_status = "claimed"
+        item.save(update_fields=["inventory_status"])
+        serializer.save(
+            item_identifier=str(item.pk),
+            item_title=item.title,
+        )
+        return Response(
+            ItemCheckoutReceiptSerializer(serializer.instance).data,
+            status=201,
+        )

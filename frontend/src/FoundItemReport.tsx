@@ -11,7 +11,6 @@ import {
   ITEM_COLORS,
   STORAGE_LOCATIONS,
 } from "./reportOptions"
-import ItemQRCode from "./ItemQRCode"
 
 const inventoryApiUrl = `http://${window.location.hostname}:8000/api/inventory/`
 const csrfApiUrl = `http://${window.location.hostname}:8000/api/auth/csrf/`
@@ -60,14 +59,12 @@ function FoundItemReport({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submittedItemId, setSubmittedItemId] = useState<string | null>(null)
-  const [submittedItemTitle, setSubmittedItemTitle] = useState("")
 
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsSubmitting(true)
     setError(null)
     setSubmittedItemId(null)
-    setSubmittedItemTitle("")
 
     const formData = new FormData(event.currentTarget)
     const item = {
@@ -123,7 +120,6 @@ function FoundItemReport({
       }
 
       setSubmittedItemId(String(payload.id))
-      setSubmittedItemTitle(item.title)
       setFormKey((key) => key + 1)
       setPhoto(null)
     } catch (submitError) {
@@ -166,13 +162,6 @@ function FoundItemReport({
               {submittedItemId}
             </code>
           </p>
-          <div className="mt-4">
-            <ItemQRCode
-              itemId={submittedItemId}
-              size={160}
-              title={submittedItemTitle}
-            />
-          </div>
           <button
             className="mt-4 rounded-xl bg-[#006747] px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-white hover:bg-[#00523a]"
             onClick={onOpenInventory}

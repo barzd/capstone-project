@@ -11,12 +11,16 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from items.models import Item
 from items.photos import MAX_PHOTO_BYTES, move_photo_into, photo_response
 from items.serializers import (
+    CheckoutItemInfoSerializer,
+    ItemCheckoutCreateSerializer,
     ItemSerializer,
     LostItemSerializer,
+    StaffItemCheckoutSerializer,
     StaffItemSerializer,
 )
 from items.views import (
     InventoryViewSet,
+    ItemCheckoutViewSet,
     IsOwnerOrSuperUser,
     IsSuperUser,
     LostItemViewSet,
@@ -76,6 +80,12 @@ class InventoryViewSetTests(SimpleTestCase):
 
             self.assertIsInstance(view.get_permissions()[0], AllowAny)
 
+    def test_staff_inventory_requires_a_superuser(self):
+        view = InventoryViewSet()
+        view.action = "staff"
+
+        self.assertIsInstance(view.get_permissions()[0], IsSuperUser)
+
     def test_inventory_deletion_remains_superuser_only(self):
         view = InventoryViewSet()
         view.action = "destroy"
@@ -111,6 +121,80 @@ class InventoryViewSetTests(SimpleTestCase):
     def test_item_id_is_generated_by_database_and_read_only_in_api(self):
         self.assertTrue(Item._meta.pk.auto_created)
         self.assertTrue(ItemSerializer().fields["id"].read_only)
+
+
+class ItemCheckoutViewSetTests(SimpleTestCase):
+    def test_public_checkout_submission_and_staff_only_log(self):
+        create_view = ItemCheckoutViewSet()
+        create_view.action = "create"
+        self.assertIsInstance(create_view.get_permissions()[0], AllowAny)
+
+        list_view = ItemCheckoutViewSet()
+        list_view.action = "list"
+        self.assertIsInstance(list_view.get_permissions()[0], IsSuperUser)
+
+    def test_checkout_form_and_staff_log_expose_only_required_fields(self):
+        self.assertEqual(
+            set(ItemCheckoutCreateSerializer().fields),
+            {"item_id", "name", "checked_out_date"},
+        )
+        self.assertEqual(
+            set(CheckoutItemInfoSerializer().fields),
+            {"id", "title", "category", "color", "location", "date", "photo_url"},
+        )
+        self.assertEqual(
+            set(StaffItemCheckoutSerializer().fields),
+            {"id", "item_title", "name", "checked_out_date"},
+        )
+
+    def test_checkout_name_is_trimmed_and_must_not_be_blank(self):
+        serializer = ItemCheckoutCreateSerializer()
+
+        self.assertEqual(serializer.validate_name("  Alex Smith  "), "Alex Smith")
+        with self.assertRaisesMessage(ValidationError, "Enter your name."):
+            serializer.validate_name("   ")
+
+    @patch("items.serializers.timezone.localdate", return_value=date(2026, 11, 4))
+    def test_checkout_date_cannot_be_in_the_future(self, localdate):
+        serializer = ItemCheckoutCreateSerializer()
+
+        with self.assertRaisesMessage(
+            ValidationError, "The checkout date cannot be in the future."
+        ):
+            serializer.validate_checked_out_date(date(2026, 11, 5))
+
+    @patch("items.serializers.ItemCheckout.objects.filter")
+    def test_existing_checkout_prevents_another_checkout(self, checkout_filter):
+        checkout_filter.return_value.exists.return_value = True
+        serializer = ItemCheckoutCreateSerializer()
+
+        with self.assertRaisesMessage(
+            ValidationError, "This item already has a checkout record."
+        ):
+            serializer.validate({"item": Mock()})
+
+    @patch("items.views.ItemCheckoutReceiptSerializer")
+    def test_checkout_records_item_snapshot_and_marks_item_claimed(self, receipt):
+        item = Mock(pk="item-123", title="Blue water bottle")
+        serializer = Mock(
+            validated_data={"item": item},
+            instance=Mock(),
+        )
+        serializer.is_valid.return_value = True
+        view = ItemCheckoutViewSet()
+        view.get_serializer = Mock(return_value=serializer)
+        view.request = Mock(data={})
+        receipt.return_value.data = {"checked_out_date": "2026-11-04"}
+
+        response = view.create(view.request)
+
+        self.assertEqual(response.status_code, 201)
+        item.save.assert_called_once_with(update_fields=["inventory_status"])
+        self.assertEqual(item.inventory_status, "claimed")
+        serializer.save.assert_called_once_with(
+            item_identifier="item-123",
+            item_title="Blue water bottle",
+        )
 
 
 def make_user(pk, *, is_superuser=False, is_authenticated=True):
