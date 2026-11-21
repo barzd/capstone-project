@@ -166,6 +166,8 @@ To try the flow:
    shows the test name, checkout date, and item name.
 7. Reopen the same URL. It should report that a checkout has already been
    recorded. Use a different unclaimed test item to test another submission.
+8. To remove a test entry, select **Delete** on its row and confirm. The entry
+   should disappear from the staff log.
 
 The checkout page does not display the item's storage location. Opening the
 URL directly tests the checkout form, but does not test phone-camera scanning.

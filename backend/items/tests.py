@@ -129,9 +129,10 @@ class ItemCheckoutViewSetTests(SimpleTestCase):
         create_view.action = "create"
         self.assertIsInstance(create_view.get_permissions()[0], AllowAny)
 
-        list_view = ItemCheckoutViewSet()
-        list_view.action = "list"
-        self.assertIsInstance(list_view.get_permissions()[0], IsSuperUser)
+        for action in ("list", "destroy"):
+            staff_view = ItemCheckoutViewSet()
+            staff_view.action = action
+            self.assertIsInstance(staff_view.get_permissions()[0], IsSuperUser)
 
     def test_checkout_form_and_staff_log_expose_only_required_fields(self):
         self.assertEqual(

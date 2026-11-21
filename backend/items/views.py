@@ -198,6 +198,7 @@ class InventoryViewSet(
 class ItemCheckoutViewSet(
     mixins.CreateModelMixin,
     mixins.ListModelMixin,
+    mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
     queryset = ItemCheckout.objects.all().order_by("-recorded_at")
