@@ -4,12 +4,15 @@
 # Stages (each is a job, run in order):
 #   1. Setup         - check out code, set up Python/Node, confirm secrets exist
 #   2. Dependencies  - install backend (pip) and frontend (npm) packages
-#   3. Test          - run Django tests and build the frontend
-#   4. Deploy        - publish the frontend to GitHub Pages (pushes to main only)
+#   3. Test          - run Django tests (AI always mocked) and build the frontend
+#   4. Eval          - run the LLM evaluation suite against the real Claude API
+#                      (pull requests to main, weekly schedule, manual runs)
+#   5. Deploy        - build the production frontend (pushes to main only)
 #
 # Secrets (Settings > Secrets and variables > Actions):
 #   MONGODB_URI        - MongoDB connection string used by Django
 #   DJANGO_SECRET_KEY  - Django's SECRET_KEY
+#   ANTHROPIC_API_KEY  - Claude API key, used ONLY by the Eval stage
 
 name: CI/CD Pipeline
 
@@ -19,6 +22,10 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # Weekly eval run (Mondays 13:17 UTC) so a change on the AI provider's side
+  # is caught even in weeks with no pull requests.
+  schedule:
+    - cron: "17 13 * * 1"
 
 permissions:
   contents: read
@@ -164,17 +171,70 @@ jobs:
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          # Unit tests use mocked AI responses and must never call the real
+          # API, so the key is deliberately empty here.
+          ANTHROPIC_API_KEY: ""
         run: .venv/bin/python manage.py test items --verbosity 2
 
       - name: Build frontend
         working-directory: frontend
         run: npm run build
 
+  eval:
+    name: Eval
+    needs: test
+    # Calls the paid API, so it runs on pull requests to main, the weekly
+    # schedule, and manual runs, not on every push.
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        id: python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Restore backend virtual environment
+        uses: actions/cache/restore@v4
+        with:
+          path: backend/.venv
+          key: venv-${{ runner.os }}-py${{ steps.python.outputs.python-version }}-${{ hashFiles('backend/requirements.txt') }}
+          fail-on-cache-miss: true
+
+      - name: Check that the Claude API key is configured
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::GitHub secret ANTHROPIC_API_KEY is not set (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+
+      - name: Run evaluation suite (fails if below thresholds)
+        working-directory: backend
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: .venv/bin/python -m evals.run --runs 3
+
+      - name: Add eval results to the run summary
+        if: always()
+        working-directory: backend
+        run: |
+          if [ -f evals/results/latest.json ]; then
+            echo '### Eval results' >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            python -c "import json; d=json.load(open('evals/results/latest.json')); print(json.dumps({k: d[k] for k in ('model','prompt','scores','thresholds','passed')}, indent=2))" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   deploy:
     name: Deploy
     needs: test
-    # Only deploy merged code on main, never pull requests.
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # Only deploy merged code on main: never pull requests or scheduled evals.
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Check out code

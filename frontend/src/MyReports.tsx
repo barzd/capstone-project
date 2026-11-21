@@ -6,6 +6,7 @@ import ChoiceField, {
   splitLocation,
 } from "./ChoiceField"
 import PhotoField, { ItemPhoto } from "./PhotoField"
+import AIMatches from "./AIMatches"
 import {
   CAMPUS_LOCATIONS,
   ITEM_CATEGORIES,
@@ -262,6 +263,7 @@ export default function MyReports({
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [closingId, setClosingId] = useState<string | null>(null)
+  const [matchesId, setMatchesId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
@@ -394,7 +396,15 @@ export default function MyReports({
                   </div>
                 </div>
                 {editingId !== report.id && (
-                  <div className="flex shrink-0 gap-2">
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <button
+                      aria-expanded={matchesId === report.id}
+                      className="rounded-xl border border-[#006747] px-4 py-2 text-sm font-semibold text-[#006747] hover:bg-emerald-50 disabled:opacity-50"
+                      onClick={() => setMatchesId(matchesId === report.id ? null : report.id)}
+                      type="button"
+                    >
+                      {matchesId === report.id ? "Hide matches" : "✨ Find matches"}
+                    </button>
                     <button
                       className="rounded-xl border border-[#cbd8d2] px-4 py-2 text-sm font-semibold text-[#334155] hover:bg-emerald-50 disabled:opacity-50"
                       disabled={closingId !== null}
@@ -417,6 +427,9 @@ export default function MyReports({
                   </div>
                 )}
               </div>
+              {matchesId === report.id && editingId !== report.id && (
+                <AIMatches reportId={report.id} />
+              )}
               {editingId === report.id && (
                 <EditReportForm
                   onCancel={() => setEditingId(null)}

@@ -14,6 +14,15 @@ import {
 
 const inventoryApiUrl = `http://${window.location.hostname}:8000/api/inventory/`
 const csrfApiUrl = `http://${window.location.hostname}:8000/api/auth/csrf/`
+const describePhotoApiUrl = `http://${window.location.hostname}:8000/api/ai/describe-photo/`
+
+// What Claude suggests from the photo (user story: Item Descriptions).
+type Suggestion = {
+  title: string
+  category: string
+  color: string
+  description: string
+}
 
 // Reports are linked to the logged-in user, so requests must carry the Django
 // session cookie plus a CSRF token (the same pattern the login screen uses).
@@ -59,6 +68,50 @@ function FoundItemReport({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submittedItemId, setSubmittedItemId] = useState<string | null>(null)
+  // Changing suggestionKey re-creates the four suggested fields with the
+  // AI's values, without clearing the photo, location, or date.
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
+  const [suggestionKey, setSuggestionKey] = useState(0)
+  const [isDescribing, setIsDescribing] = useState(false)
+  const [aiMessage, setAiMessage] = useState<string | null>(null)
+
+  async function fillFromPhoto() {
+    if (!photo) return
+    setIsDescribing(true)
+    setAiMessage(null)
+    const body = new FormData()
+    body.append("photo", photo, "photo.jpg")
+    try {
+      const csrfToken = await getCsrfToken()
+      const response = await fetch(describePhotoApiUrl, {
+        method: "POST",
+        headers: { Accept: "application/json", "X-CSRFToken": csrfToken },
+        credentials: "include",
+        body,
+      })
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Please sign in again to use AI suggestions.")
+      }
+      const payload: unknown = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(getErrorMessage(payload, response.status))
+      const r = (payload ?? {}) as Record<string, unknown>
+      setSuggestion({
+        title: typeof r.title === "string" ? r.title : "",
+        category: typeof r.category === "string" ? r.category : "",
+        color: typeof r.color === "string" ? r.color : "",
+        description: typeof r.description === "string" ? r.description : "",
+      })
+      setSuggestionKey((key) => key + 1)
+      setAiMessage("AI filled in the name, category, color, and description. Please check them before submitting.")
+    } catch (describeError) {
+      // Fallback: nothing in the form is changed; staff fill it in by hand.
+      const reason =
+        describeError instanceof Error ? describeError.message : "Could not get AI suggestions."
+      setAiMessage(`${reason} You can still fill in the details yourself.`)
+    } finally {
+      setIsDescribing(false)
+    }
+  }
 
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -122,6 +175,8 @@ function FoundItemReport({
       setSubmittedItemId(String(payload.id))
       setFormKey((key) => key + 1)
       setPhoto(null)
+      setSuggestion(null)
+      setAiMessage(null)
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -183,6 +238,8 @@ function FoundItemReport({
             <input
               autoComplete="off"
               className="w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+              defaultValue={suggestion?.title}
+              key={`title-${suggestionKey}`}
               maxLength={200}
               name="title"
               placeholder="e.g. Water bottle"
@@ -190,6 +247,8 @@ function FoundItemReport({
             />
           </label>
           <ChoiceField
+            defaultValue={suggestion?.category}
+            key={`category-${suggestionKey}`}
             label="Category"
             name="category"
             options={ITEM_CATEGORIES}
@@ -199,6 +258,8 @@ function FoundItemReport({
             required
           />
           <ChoiceField
+            defaultValue={suggestion?.color}
+            key={`color-${suggestionKey}`}
             label="Color"
             name="color"
             options={ITEM_COLORS}
@@ -241,12 +302,32 @@ function FoundItemReport({
           Description
           <textarea
             className="min-h-28 w-full rounded-xl border border-[#cbd8d2] px-3 py-2.5 font-normal outline-none focus:border-[#006747] focus:ring-2 focus:ring-[#006747]/15"
+            defaultValue={suggestion?.description}
+            key={`description-${suggestionKey}`}
             name="description"
             placeholder="Add helpful identifying details"
           />
         </label>
 
         <PhotoField disabled={isSubmitting} onChange={setPhoto} />
+
+        {photo && (
+          <div className="space-y-2">
+            <button
+              className="rounded-xl border border-[#006747] px-4 py-2.5 text-sm font-semibold text-[#006747] hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isDescribing || isSubmitting}
+              onClick={fillFromPhoto}
+              type="button"
+            >
+              {isDescribing ? "Looking at the photo…" : "✨ Fill in details from photo"}
+            </button>
+            {aiMessage && (
+              <p className="text-sm text-[#334155]" role="status">
+                {aiMessage}
+              </p>
+            )}
+          </div>
+        )}
 
         {error && (
           <p
