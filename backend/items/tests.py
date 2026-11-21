@@ -8,6 +8,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
+from items import ai
 from items.models import Item
 from items.photos import MAX_PHOTO_BYTES, move_photo_into, photo_response
 from items.serializers import (
@@ -396,3 +397,207 @@ class ReportManagementTests(SimpleTestCase):
         view.action = "mine"
         self.assertIsInstance(view.get_permissions()[0], IsAuthenticated)
 
+
+
+
+# ---------------------------------------------------------------------------
+# LLM feature tests. Claude is always mocked: these never call the real API.
+# ---------------------------------------------------------------------------
+
+def fake_claude(reply):
+    """A stand-in Anthropic client whose reply text is `reply` (dict -> JSON)."""
+    import json
+
+    text = reply if isinstance(reply, str) else json.dumps(reply)
+    client = Mock()
+    client.messages.create.return_value = Mock(
+        content=[Mock(type="thinking"), Mock(type="text", text=text)]
+    )
+    return client
+
+
+def failing_claude(error):
+    client = Mock()
+    client.messages.create.side_effect = error
+    return client
+
+
+def fake_item(pk, title="Item", category="Electronics", item_date=date(2026, 11, 10), **extra):
+    item = Mock(
+        pk=pk,
+        title=title,
+        category=category,
+        color=extra.get("color", "White"),
+        location=extra.get("location", "Greenley Library"),
+        description=extra.get("description", ""),
+    )
+    item.date = item_date
+    return item
+
+
+class AIMatchingTests(SimpleTestCase):
+    """User story: AI Matching & Search (Epic 3)."""
+
+    def setUp(self):
+        self.lost = fake_item("lost1", "White AirPods", item_date=date(2026, 11, 5))
+        self.earbuds = fake_item("f1", "White wireless earbuds")
+        self.keys = fake_item("f2", "Car keys", category="Keys")
+
+    def test_matches_are_returned_best_first(self):
+        client = fake_claude({"matches": [
+            {"id": "f2", "score": 45, "reason": "Different item but same place."},
+            {"id": "f1", "score": 92, "reason": "White earbuds found in the library."},
+        ]})
+
+        matches, source = ai.suggest_matches(self.lost, [self.earbuds, self.keys], client=client)
+
+        self.assertEqual(source, "ai")
+        self.assertEqual([m["id"] for m in matches], ["f1", "f2"])
+
+    def test_made_up_ids_and_weak_matches_are_dropped(self):
+        client = fake_claude({"matches": [
+            {"id": "not-a-real-item", "score": 99, "reason": "?"},
+            {"id": "f2", "score": 10, "reason": "Unlikely."},
+        ]})
+
+        matches, source = ai.suggest_matches(self.lost, [self.earbuds, self.keys], client=client)
+
+        self.assertEqual((matches, source), ([], "ai"))
+
+    def test_uses_the_versioned_prompt_file(self):
+        client = fake_claude({"matches": []})
+
+        ai.suggest_matches(self.lost, [self.earbuds], client=client)
+
+        system = client.messages.create.call_args.kwargs["system"]
+        self.assertEqual(system, ai.load_prompt(ai.MATCH_PROMPT_VERSION))
+        self.assertTrue(system)
+
+    def test_same_category_items_are_sent_first(self):
+        self.assertEqual(
+            ai.pick_candidates(self.lost, [self.keys, self.earbuds]),
+            [self.earbuds, self.keys],
+        )
+
+    def test_items_found_before_the_loss_are_skipped(self):
+        old = fake_item("f3", "Earbuds", item_date=date(2026, 10, 1))
+
+        self.assertEqual(ai.pick_candidates(self.lost, [old]), [])
+
+    def test_no_found_items_means_no_api_call(self):
+        client = fake_claude({"matches": []})
+
+        self.assertEqual(ai.suggest_matches(self.lost, [], client=client), ([], "ai"))
+        client.messages.create.assert_not_called()
+
+    def test_reporter_details_are_never_sent_to_claude(self):
+        self.assertEqual(
+            set(ai.item_summary(self.lost)),
+            {"id", "title", "category", "color", "location", "date", "description"},
+        )
+
+    def test_matches_require_the_report_owner(self):
+        view = LostItemViewSet()
+        view.action = "matches"
+        permissions = view.get_permissions()
+
+        self.assertIsInstance(permissions[0], IsAuthenticated)
+        self.assertIsInstance(permissions[1], IsOwnerOrSuperUser)
+
+
+class AIFallbackTests(SimpleTestCase):
+    """Fallback Path: the app behaves safely when the AI call fails, times out,
+    or returns invalid output. Matching switches to rule-based matching."""
+
+    def setUp(self):
+        self.lost = fake_item("lost1", "White AirPods", item_date=date(2026, 11, 5))
+        self.earbuds = fake_item("f1", "AirPods case", color="White")
+        self.laptop = fake_item("f2", "Dell laptop", color="Black", location="Lupton Hall")
+        self.keys = fake_item("f3", "Car keys", category="Keys")
+        self.found = [self.earbuds, self.laptop, self.keys]
+
+    def assert_fallback_used(self, client):
+        matches, source = ai.suggest_matches(self.lost, self.found, client=client)
+        self.assertEqual(source, "fallback")
+        # Rule-based: same category plus another detail. The AirPods case
+        # matches; the black laptop in another building and the keys don't.
+        self.assertEqual([m["id"] for m in matches], ["f1"])
+        self.assertTrue(matches[0]["reason"].startswith("Basic match"))
+
+    def test_api_error_uses_fallback(self):
+        self.assert_fallback_used(failing_claude(RuntimeError("500 Internal Server Error")))
+
+    def test_timeout_uses_fallback(self):
+        self.assert_fallback_used(failing_claude(TimeoutError("Request timed out")))
+
+    def test_invalid_json_uses_fallback(self):
+        self.assert_fallback_used(fake_claude("Sure! Here are the matches: f1"))
+
+    def test_wrong_shape_uses_fallback(self):
+        self.assert_fallback_used(fake_claude({"results": ["f1"]}))
+
+    def test_non_numeric_score_uses_fallback(self):
+        self.assert_fallback_used(
+            fake_claude({"matches": [{"id": "f1", "score": "high", "reason": "x"}]})
+        )
+
+    def test_empty_reply_uses_fallback(self):
+        client = Mock()
+        client.messages.create.return_value = Mock(content=[])
+        self.assert_fallback_used(client)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""})
+    def test_missing_api_key_uses_fallback(self):
+        matches, source = ai.suggest_matches(self.lost, self.found)
+        self.assertEqual(source, "fallback")
+        self.assertEqual([m["id"] for m in matches], ["f1"])
+
+    def test_api_error_details_are_not_shown_to_users(self):
+        client = failing_claude(RuntimeError("secret internal detail"))
+        with self.assertRaises(ai.AIUnavailable) as caught:
+            ai.ask_claude_for_json(client, system="s", content="c", schema={})
+        self.assertNotIn("secret", str(caught.exception))
+
+    def test_photo_description_failure_leaves_form_unchanged(self):
+        # The view turns AIUnavailable into HTTP 503; nothing is pre-filled.
+        for client in (
+            failing_claude(TimeoutError("timed out")),
+            fake_claude("not json"),
+            fake_claude({"title": "", "category": "Keys", "color": "Red", "description": ""}),
+        ):
+            with self.assertRaises(ai.AIUnavailable):
+                ai.describe_photo(b"x", "image/jpeg", client=client)
+
+
+class ItemDescriptionTests(SimpleTestCase):
+    """User story: Item Descriptions (Epic 6)."""
+
+    def test_photo_suggestion_fills_report_fields(self):
+        client = fake_claude({
+            "title": "Blue Hydro Flask",
+            "category": "Water Bottles",
+            "color": "Blue",
+            "description": "32 oz bottle with a dent near the bottom.",
+        })
+
+        result = ai.describe_photo(b"\xff\xd8\xff fake jpeg", "image/jpeg", client=client)
+
+        self.assertEqual(result["category"], "Water Bottles")
+        self.assertEqual(result["color"], "Blue")
+        image = client.messages.create.call_args.kwargs["messages"][0]["content"][0]
+        self.assertEqual(image["source"]["media_type"], "image/jpeg")
+
+    def test_unknown_category_is_left_blank(self):
+        client = fake_claude({
+            "title": "Thing", "category": "Spaceships", "color": "Blue", "description": "",
+        })
+
+        self.assertEqual(ai.describe_photo(b"x", "image/png", client=client)["category"], "")
+
+    def test_categories_match_the_report_forms(self):
+        self.assertEqual(ai.DESCRIBE_SCHEMA["properties"]["category"]["enum"], ai.ITEM_CATEGORIES)
+
+    def test_describe_photo_requires_login(self):
+        from items.views import describe_photo
+
+        self.assertIn(IsAuthenticated, describe_photo.cls.permission_classes)

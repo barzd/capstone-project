@@ -19,7 +19,7 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from config.views import csrf_token, inventory_return
-from items.views import InventoryViewSet, LostItemViewSet
+from items.views import InventoryViewSet, LostItemViewSet, describe_photo
 from . import password_reset, reset_pages
 
 router = DefaultRouter()
@@ -33,6 +33,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("api/", include(router.urls)),
 
+    path("api/ai/describe-photo/", describe_photo, name="ai-describe-photo"),
     path("api/auth/csrf/", csrf_token, name="csrf-token"),
     path("api/auth/", include("dj_rest_auth.urls")),
     path("api/auth/registration/", include("dj_rest_auth.registration.urls")),

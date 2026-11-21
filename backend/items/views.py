@@ -1,14 +1,17 @@
 from rest_framework import viewsets
 from rest_framework import mixins
+from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
+from . import ai
 from .models import Item
-from .photos import photo_response
+from .photos import photo_response, read_photo_upload
 from .serializers import ItemSerializer, LostItemSerializer, StaffItemSerializer
 
 
@@ -52,7 +55,7 @@ class LostItemViewSet(viewsets.ModelViewSet):
             return [IsSuperUser()]
         if self.action in {"create", "mine"}:
             return [IsAuthenticated()]
-        if self.action in {"update", "partial_update", "destroy", "close"}:
+        if self.action in {"update", "partial_update", "destroy", "close", "matches"}:
             return [IsAuthenticated(), IsOwnerOrSuperUser()]
         return [AllowAny()]
 
@@ -86,6 +89,39 @@ class LostItemViewSet(viewsets.ModelViewSet):
     def mine(self, request):
         items = self.get_queryset().filter(reported_by=request.user)
         return Response(self.get_serializer(items, many=True).data)
+
+    @action(detail=True, methods=["get"])
+    def matches(self, request, pk=None):
+        """AI Matching: found items that may be this lost item.
+
+        Only the report's owner (or a superuser) can ask, which also limits how
+        often the paid AI API is called. If Claude fails, times out, or returns
+        invalid output, rule-based matching is used instead ("source": "fallback").
+        """
+        lost_item = self.get_object()  # runs the owner-or-superuser check
+        found_items = list(
+            Item.objects.filter(status="found", inventory_status="available")
+            .defer("photo")
+            .order_by("-created_at")[:200]
+        )
+        suggestions, source = ai.suggest_matches(lost_item, found_items)
+        return Response(self.build_match_response(request, found_items, suggestions, source))
+
+    @staticmethod
+    def build_match_response(request, found_items, suggestions, source):
+        by_id = {str(item.pk): item for item in found_items}
+        serializer = ItemSerializer(
+            [by_id[match["id"]] for match in suggestions],
+            many=True,
+            context={"request": request, "view": _InventoryPhotoContext},
+        )
+        return {
+            "source": source,
+            "matches": [
+                {**item_data, "match_score": match["score"], "match_reason": match["reason"]}
+                for item_data, match in zip(serializer.data, suggestions)
+            ],
+        }
 
     @action(detail=True, methods=["post"], permission_classes=[IsSuperUser])
     def resolve(self, request, pk=None):
@@ -154,3 +190,32 @@ class InventoryViewSet(
     def get_queryset(self):
         # defer("photo"): lists don't need the image bytes, only photo_url.
         return Item.objects.filter(status="found").defer("photo").order_by("-created_at")
+
+
+class _InventoryPhotoContext:
+    """Lets ItemSerializer build /api/inventory/<id>/photo/ URLs for matches."""
+
+    basename = "inventory"
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def describe_photo(request):
+    """Item Descriptions: suggest title, category, color, and description.
+
+    POST a multipart form with a "photo" field. Nothing is saved; the
+    suggestions are only used to pre-fill the Report Found Item form.
+    """
+    upload = request.FILES.get("photo")
+    if upload is None:
+        raise ValidationError({"photo": "Please attach a photo."})
+    try:
+        photo = read_photo_upload(upload)
+    except serializers.ValidationError as error:
+        raise ValidationError({"photo": error.detail})
+    try:
+        suggestion = ai.describe_photo(photo["data"], photo["content_type"])
+    except ai.AIUnavailable as error:
+        return Response({"detail": str(error)}, status=503)
+    return Response(suggestion)

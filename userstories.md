@@ -22,7 +22,7 @@ Let users report lost and found items with enough detail to identify them.
 ## Epic 3: Search & Matching
 Help owners find their items quickly through search and smart matching.
 
-- **AI Matching & Search:** As a student, I want the system to suggest possible matching found items, so that I can recover my items faster.
+- ~~**AI Matching & Search:** As a student, I want the system to suggest possible matching found items, so that I can recover my items faster.~~
 - ~~**Search Filters:** As a student, I want to filter items by category, color, location, and date, so that I can find possible matches more easily.~~
 - **Match Notifications:** As a student, I want to receive a notification when a possible match is found, so that I can check if my item has been turned in.
 
@@ -44,7 +44,7 @@ Guide verified owners through getting their item back.
 Give Lost & Found staff what they need to manage items efficiently.
 
 - ~~**Staff Dashboard:** As a staff member, I want to view and manage lost item reports and claims, so that I can keep the lost and found system organized.~~
-- **Item Descriptions:** As a staff member, I want the system to suggest item descriptions and categories, so that I can add found items faster.
+- ~~**Item Descriptions:** As a staff member, I want the system to suggest item descriptions and categories, so that I can add found items faster.~~
 
 ## Epic 7: Interactive Campus Map
 Help students easily locate lost and found items across campus.
