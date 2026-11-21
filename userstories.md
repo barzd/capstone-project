@@ -22,9 +22,9 @@ Let users report lost and found items with enough detail to identify them.
 ## Epic 3: Search & Matching
 Help owners find their items quickly through search and smart matching.
 
-- **AI Matching & Search:** As a student, I want the system to suggest possible matching found items, so that I can recover my items faster.
+- ~~**AI Matching & Search:** As a student, I want the system to suggest possible matching found items, so that I can recover my items faster.~~
 - ~~**Search Filters:** As a student, I want to filter items by category, color, location, and date, so that I can find possible matches more easily.~~
-- **Match Notifications:** As a student, I want to receive a notification when a possible match is found, so that I can check if my item has been turned in.
+- ~~**Match Notifications:** As a student, I want to receive a notification when a possible match is found, so that I can check if my item has been turned in.~~
 
 ## Epic 4: Claims & Verification
 Make sure items are returned only to their real owners.
