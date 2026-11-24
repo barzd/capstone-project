@@ -2,7 +2,9 @@ import { useEffect, useState } from "react"
 import { ItemPhoto } from "./PhotoField"
 import MyReports from "./MyReports"
 
-const apiBaseUrl = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "")
+const apiBaseUrl = (
+  import.meta.env.VITE_API_URL ?? `http://${window.location.hostname}:8000`
+).replace(/\/$/, "")
 const lostItemsApiUrl = `${apiBaseUrl}/api/lost-items/`
 const inventoryApiUrl = `${apiBaseUrl}/api/inventory/`
 
@@ -151,11 +153,13 @@ function ReportSection({
                 )}
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-xs text-[#64748b]">
-                <span>{formatDate(item.date)}</span>
-                <code className="max-w-40 break-all rounded-md border border-[#dce3e0] bg-[#f8faf9] px-2 py-1 font-mono">
-                  {item.id}
-                </code>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-[#64748b]">
+                <div className="flex items-center gap-3">
+                  <span>{formatDate(item.date)}</span>
+                  <code className="max-w-40 break-all rounded-md border border-[#dce3e0] bg-[#f8faf9] px-2 py-1 font-mono">
+                    {item.id}
+                  </code>
+                </div>
               </div>
             </li>
           ))}

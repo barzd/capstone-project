@@ -1,6 +1,7 @@
 from django.urls import NoReverseMatch, reverse
+from django.utils import timezone
 from rest_framework import serializers
-from .models import Item
+from .models import Item, ItemCheckout
 from .photos import move_photo_into, read_photo_upload
 
 
@@ -52,6 +53,22 @@ class ItemSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
+class CheckoutItemInfoSerializer(ItemSerializer):
+    """Public item details safe to display on the QR checkout form."""
+
+    class Meta(ItemSerializer.Meta):
+        exclude = None
+        fields = [
+            "id",
+            "title",
+            "category",
+            "color",
+            "location",
+            "date",
+            "photo_url",
+        ]
+
+
 class LostItemSerializer(ItemSerializer):
     class Meta(ItemSerializer.Meta):
         exclude = None
@@ -76,7 +93,7 @@ class StaffItemSerializer(ItemSerializer):
     """Superuser-only view of an item.
 
     Staff need to know who turned an item in so they can follow up about
-    claims and pickups. Only used when the logged-in user is a superuser.
+    checkouts. Only used when the logged-in user is a superuser.
     """
 
     reported_by_username = serializers.SerializerMethodField()
@@ -90,3 +107,58 @@ class StaffItemSerializer(ItemSerializer):
 
     def get_reported_by_email(self, item):
         return item.reported_by.email if item.reported_by else None
+
+
+class ItemCheckoutCreateSerializer(serializers.ModelSerializer):
+    item_id = serializers.PrimaryKeyRelatedField(
+        source="item",
+        queryset=Item.objects.filter(
+            status="found",
+            inventory_status__in=["available", "claimed"],
+        ),
+    )
+
+    class Meta:
+        model = ItemCheckout
+        fields = ["item_id", "name", "checked_out_date"]
+
+    def validate_name(self, name):
+        name = name.strip()
+        if not name:
+            raise serializers.ValidationError("Enter your name.")
+        return name
+
+    def validate_checked_out_date(self, checked_out_date):
+        if checked_out_date > timezone.localdate():
+            raise serializers.ValidationError(
+                "The checkout date cannot be in the future."
+            )
+        return checked_out_date
+
+    def validate(self, attrs):
+        if ItemCheckout.objects.filter(item=attrs["item"]).exists():
+            raise serializers.ValidationError(
+                {"item_id": "This item already has a checkout record."}
+            )
+        return attrs
+
+
+class ItemCheckoutReceiptSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = ItemCheckout
+        fields = ["id", "checked_out_date"]
+
+
+class StaffItemCheckoutSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = ItemCheckout
+        fields = [
+            "id",
+            "item_title",
+            "name",
+            "checked_out_date",
+        ]

@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react"
 import { ItemPhoto } from "./PhotoField"
+import ItemQRCode from "./ItemQRCode"
+import CheckoutLog from "./CheckoutLog"
 
 const imgPackageCheck = `${import.meta.env.BASE_URL}assets/c05e7.svg`
 
 const inventoryApiUrl = `http://${window.location.hostname}:8000/api/inventory/`
+const staffInventoryApiUrl = `${inventoryApiUrl}staff/`
 const lostItemsApiUrl = `http://${window.location.hostname}:8000/api/lost-items/`
 
 const inventoryReturnPath = `/inventory-return/?origin=${encodeURIComponent(window.location.origin)}`
@@ -205,16 +208,15 @@ function getCsrfToken(): string | null {
 }
 
 function InventoryScreen() {
-  const [selectedTab, setSelectedTab] = useState<"requests" | "found">(
-    "requests",
-  )
+  const [selectedTab, setSelectedTab] =
+    useState<"requests" | "found" | "checkouts">("requests")
+  const [checkoutCount, setCheckoutCount] = useState<number | null>(null)
   const [items, setItems] = useState<InventoryItem[]>([])
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [lostItems, setLostItems] = useState<InventoryItem[]>([])
-  const [selectedSortOptions, setSelectedSortOptions] = useState<
-    Set<SortOption>
-  >(() => new Set())
-  const [dateSortOrder, setDateSortOrder] =
-    useState<DateSortOrder>("newest")
+  const [selectedSortOptions, setSelectedSortOptions] =
+    useState<Set<SortOption>>(() => new Set())
+  const [dateSortOrder, setDateSortOrder] = useState<DateSortOrder>("newest")
   const [searchQuery, setSearchQuery] = useState("")
 
   const [isLoading, setIsLoading] = useState(true)
@@ -245,6 +247,8 @@ function InventoryScreen() {
     sortItems(lostItems, selectedSortOptions, dateSortOrder),
     searchQuery,
   )
+  const selectedItem =
+    items.find((item) => item.id === selectedItemId) ?? null
 
   function updateSortOption(option: SortOption, isSelected: boolean) {
     setSelectedSortOptions((currentOptions) => {
@@ -260,7 +264,7 @@ function InventoryScreen() {
 
     async function loadInventory() {
       try {
-        const response = await fetch(inventoryApiUrl, {
+        const response = await fetch(staffInventoryApiUrl, {
           headers: { Accept: "application/json" },
           credentials: "include",
           signal: controller.signal,
@@ -443,7 +447,9 @@ function InventoryScreen() {
         )
       }
       if (!response.ok) {
-        throw new Error(`Could not delete the report (HTTP ${response.status}).`)
+        throw new Error(
+          `Could not delete the report (HTTP ${response.status}).`,
+        )
       }
 
       setLostItems((currentItems) =>
@@ -493,7 +499,10 @@ function InventoryScreen() {
         },
       )
 
-      if (response.status === 403 && response.headers.get("content-type")?.includes("text/html")) {
+      if (
+        response.status === 403 &&
+        response.headers.get("content-type")?.includes("text/html")
+      ) {
         throw new Error(
           "Django rejected the request's CSRF origin. Restart the backend server, refresh this page, and try again.",
         )
@@ -511,6 +520,7 @@ function InventoryScreen() {
       setItems((currentItems) =>
         currentItems.filter((currentItem) => currentItem.id !== item.id),
       )
+      setSelectedItemId((currentId) => (currentId === item.id ? null : currentId))
     } catch (requestError) {
       setDeleteError(
         requestError instanceof Error
@@ -550,7 +560,7 @@ function InventoryScreen() {
 
       <nav
         aria-label="Inventory section"
-        className="grid grid-cols-2 gap-3 rounded-2xl border border-[#dce9e3] bg-white p-2 shadow-sm"
+        className="grid grid-cols-3 gap-3 rounded-2xl border border-[#dce9e3] bg-white p-2 shadow-sm"
       >
         {[
           {
@@ -564,6 +574,12 @@ function InventoryScreen() {
             label: "Item Requests",
             count: lostItems.length,
             isLoading: isLoadingLostItems,
+          },
+          {
+            id: "checkouts" as const,
+            label: "Checkouts",
+            count: checkoutCount ?? "—",
+            isLoading: false,
           },
         ].map((tab) => {
           const isSelected = selectedTab === tab.id
@@ -597,304 +613,390 @@ function InventoryScreen() {
         })}
       </nav>
 
-      {selectedTab === "requests" ? (
-      <section className="overflow-hidden rounded-3xl border border-[#dce9e3] bg-white shadow-sm">
-        <div className="flex flex-col justify-between gap-4 border-b border-[#dce9e3] p-6 sm:flex-row sm:items-center sm:p-8">
-          <div>
-            <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
-              Staff requests
-            </p>
-            <h2 className="mt-2 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
-              Item Requests
-            </h2>
-            <p className="mt-1 text-sm text-[#64748b]">
-              Mark a recovered request as resolved to move it into found
-              inventory.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 sm:items-end">
-            <div className="flex items-center gap-3">
-              <span className="w-fit rounded-full bg-amber-50 px-3 py-1.5 font-['Figtree:SemiBold'] text-xs font-semibold text-amber-800">
-                {isLoadingLostItems
-                  ? "Loading…"
-                  : searchQuery.trim()
-                    ? `${sortedLostItems.length} of ${lostItems.length} open reports`
-                    : `${lostItems.length} open reports`}
-              </span>
-              <SortMenu
-                dateSortOrder={dateSortOrder}
-                onDateSortOrderChange={setDateSortOrder}
-                onChange={updateSortOption}
-                selectedOptions={selectedSortOptions}
-              />
-            </div>
-            <label className="block w-full sm:w-64">
-              <span className="sr-only">Search item requests</span>
-              <input
-                className="staff-search-input min-h-10 w-full rounded-xl border border-[#dce9e3] bg-white px-3 py-2 text-sm text-[#334155] outline-none transition-colors placeholder:text-[#64748b] focus:border-[#006747] focus:ring-2 focus:ring-emerald-100"
-                onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                placeholder="Search item requests…"
-                type="search"
-                value={searchQuery}
-              />
-            </label>
-          </div>
-        </div>
-
-        {resolveError && (
-          <p className="px-6 pt-5 text-sm text-red-700" role="alert">
-            {resolveError}
-            {needsSuperuserLogin && (
-              <>
-                {" "}
-                <a className="font-semibold underline" href={adminLoginUrl}>
-                  Sign in to Django admin
-                </a>
-              </>
-            )}
-          </p>
-        )}
-        {deleteLostItemError && (
-          <p
-            className="delete-report-error px-6 pt-5 text-sm text-red-700"
-            role="alert"
-          >
-            {deleteLostItemError}
-            {needsSuperuserLogin && (
-              <>
-                {" "}
-                <a className="font-semibold underline" href={adminLoginUrl}>
-                  Sign in to Django admin
-                </a>
-              </>
-            )}
-          </p>
-        )}
-        {lostItemsError ? (
-          <p className="px-6 py-10 text-center text-sm text-red-700" role="alert">
-            {lostItemsError}
-          </p>
-        ) : isLoadingLostItems ? (
-          <p className="px-6 py-10 text-center text-sm text-[#64748b]">
-            Loading lost reports…
-          </p>
-        ) : lostItems.length === 0 ? (
-          <p className="px-6 py-10 text-center text-sm text-[#64748b]">
-            There are no lost reports to resolve.
-          </p>
-        ) : sortedLostItems.length === 0 ? (
-          <p className="px-6 py-10 text-center text-sm text-[#64748b]">
-            No item requests match “{searchQuery.trim()}”.
-          </p>
-        ) : (
-          <ul className="divide-y divide-[#e8efeb]">
-            {sortedLostItems.map((item) => (
-              <li
-                className="flex flex-col justify-between gap-4 px-6 py-5 sm:flex-row sm:items-center sm:px-8"
-                key={item.id}
-              >
-                <div className="flex min-w-0 gap-4">
-                <ItemPhoto title={item.title} url={item.photo_url} />
-                <div className="min-w-0">
-                  <p className="font-['Figtree:SemiBold'] font-semibold text-[#17212b]">
-                    {item.title}
-                  </p>
-                  <p className="mt-1 text-sm text-[#64748b]">
-                    {[item.location, item.date && `Lost ${item.date}`]
-                      .filter(Boolean)
-                      .join(" · ") || "No location or date provided"}
-                  </p>
-                  {item.description && (
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-[#64748b]">
-                      {item.description}
-                    </p>
-                  )}
-                  <code className="mt-2 inline-block max-w-full break-all rounded-md border border-[#dce3e0] bg-[#f8faf9] px-2 py-1 font-mono text-xs text-[#334155]">
-                    {item.id}
-                  </code>
-                </div>
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  <button
-                    className="delete-report-button rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={
-                      resolvingItemId !== null || deletingLostItemId !== null
-                    }
-                    onClick={() => deleteLostItem(item)}
-                    type="button"
-                  >
-                    {deletingLostItemId === item.id
-                      ? "Deleting…"
-                      : "Delete report"}
-                  </button>
-                  <button
-                    className="rounded-xl bg-[#006747] px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-white transition-colors hover:bg-[#00523a] disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={
-                      resolvingItemId !== null || deletingLostItemId !== null
-                    }
-                    onClick={() => resolveLostItem(item)}
-                    type="button"
-                  >
-                    {resolvingItemId === item.id
-                      ? "Resolving…"
-                      : "Resolve & Add to Inventory"}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      ) : (
-      <section className="overflow-hidden rounded-3xl border border-[#dce9e3] bg-white shadow-sm">
-        <div className="flex flex-col justify-between gap-4 border-b border-[#dce9e3] p-6 sm:flex-row sm:items-center sm:p-8">
-          <div>
-            <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
-              Inventory list
-            </p>
-            <h2 className="mt-2 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
-              Found items
-            </h2>
-          </div>
-          <div className="flex flex-col gap-3 sm:items-end">
-            <div className="flex items-center gap-3">
-              <span className="w-fit rounded-full bg-emerald-50 px-3 py-1.5 font-['Figtree:SemiBold'] text-xs font-semibold text-[#006747]">
-                {isLoading
-                  ? "Loading…"
-                  : searchQuery.trim()
-                    ? `${sortedItems.length} of ${items.length} items`
-                    : `${items.length} items`}
-              </span>
-              <SortMenu
-                dateSortOrder={dateSortOrder}
-                onDateSortOrderChange={setDateSortOrder}
-                onChange={updateSortOption}
-                selectedOptions={selectedSortOptions}
-              />
-            </div>
-            <label className="block w-full sm:w-64">
-              <span className="sr-only">Search found items</span>
-              <input
-                className="staff-search-input min-h-10 w-full rounded-xl border border-[#dce9e3] bg-white px-3 py-2 text-sm text-[#334155] outline-none transition-colors placeholder:text-[#64748b] focus:border-[#006747] focus:ring-2 focus:ring-emerald-100"
-                onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                placeholder="Search found items…"
-                type="search"
-                value={searchQuery}
-              />
-            </label>
-          </div>
-        </div>
-
-        {error ? (
-          <div className="px-6 py-12 text-center" role="alert">
-            <p className="font-['Outfit:Bold'] text-xl font-bold text-[#17212b]">
-              {needsSuperuserLogin
-                ? "Superuser sign-in required"
-                : "Inventory unavailable"}
-            </p>
-            <p className="mt-2 font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#64748b]">
-              {error}
-            </p>
-            {needsSuperuserLogin && (
-              <a
-                className="mt-5 inline-flex rounded-xl bg-[#006747] px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-white hover:bg-[#004f3a]"
-                href={adminLoginUrl}
-              >
-                Sign in to Django admin
-              </a>
-            )}
-          </div>
-        ) : isLoading ? (
-          <div className="px-6 py-16 text-center text-sm font-medium text-[#64748b]">
-            Loading inventory…
-          </div>
-        ) : items.length === 0 ? (
-          <div className="px-6 py-16 text-center">
-            <p className="font-['Outfit:Bold'] text-xl font-bold text-[#17212b]">
-              No found items yet
-            </p>
-            <p className="mt-2 font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#64748b]">
-              Found items will appear here when they are added.
-            </p>
-          </div>
-        ) : sortedItems.length === 0 ? (
-          <p className="px-6 py-16 text-center text-sm text-[#64748b]">
-            No found items match “{searchQuery.trim()}”.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            {deleteError && (
-              <p className="px-6 py-3 text-sm text-red-700" role="alert">
-                {deleteError}
+      {selectedTab === "checkouts" ? (
+        <CheckoutLog onCountChange={setCheckoutCount} />
+      ) : selectedTab === "requests" ? (
+        <section className="overflow-hidden rounded-3xl border border-[#dce9e3] bg-white shadow-sm">
+          <div className="flex flex-col justify-between gap-4 border-b border-[#dce9e3] p-6 sm:flex-row sm:items-center sm:p-8">
+            <div>
+              <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+                Staff requests
               </p>
-            )}
-            <table className="w-full min-w-[900px] text-left">
-              <thead className="bg-[#f8faf9] font-['Figtree:Bold'] text-[11px] font-bold tracking-[0.08em] text-[#64748b] uppercase">
-                <tr>
-                  <th className="px-6 py-3">Item</th>
-                  <th className="px-6 py-3">Description</th>
-                  <th className="px-6 py-3">Location found</th>
-                  <th className="px-6 py-3">Date found</th>
-                  <th className="px-6 py-3">Storage location</th>
-                  <th className="px-6 py-3">Item ID</th>
-                  <th className="px-6 py-3">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#e8efeb]">
-                {sortedItems.map((item) => (
-                  <tr
-                    className="align-top text-sm text-[#334155]"
-                    key={item.id}
-                  >
-                    <td className="px-6 py-4 font-semibold text-[#17212b]">
-                      <div className="flex items-center gap-3">
-                        <ItemPhoto
-                          className="size-12"
-                          title={item.title}
-                          url={item.photo_url}
-                        />
-                        <span>{item.title}</span>
-                      </div>
-                    </td>
-                    <td className="max-w-sm whitespace-pre-wrap px-6 py-4">
-                      {item.description || "—"}
-                    </td>
-                    <td className="px-6 py-4">{item.location || "—"}</td>
-                    <td className="px-6 py-4">
-                      {item.date
-                        ? new Date(`${item.date}T00:00:00`).toLocaleDateString()
-                        : "—"}
-                    </td>
-                    <td className="px-6 py-4">
-                      {item.storage_location || "—"}
-                    </td>
-                    <td className="px-6 py-4">
-                      <code className="inventory-item-id inline-block max-w-[190px] break-all rounded-md border border-[#dce3e0] bg-[#f8faf9] px-2.5 py-1.5 font-mono text-xs text-[#334155]">
+              <h2 className="mt-2 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
+                Item Requests
+              </h2>
+              <p className="mt-1 text-sm text-[#64748b]">
+                Mark a recovered request as resolved to move it into found
+                inventory.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:items-end">
+              <div className="flex items-center gap-3">
+                <span className="w-fit rounded-full bg-amber-50 px-3 py-1.5 font-['Figtree:SemiBold'] text-xs font-semibold text-amber-800">
+                  {isLoadingLostItems
+                    ? "Loading…"
+                    : searchQuery.trim()
+                      ? `${sortedLostItems.length} of ${lostItems.length} open reports`
+                      : `${lostItems.length} open reports`}
+                </span>
+                <SortMenu
+                  dateSortOrder={dateSortOrder}
+                  onDateSortOrderChange={setDateSortOrder}
+                  onChange={updateSortOption}
+                  selectedOptions={selectedSortOptions}
+                />
+              </div>
+              <label className="block w-full sm:w-64">
+                <span className="sr-only">Search item requests</span>
+                <input
+                  className="staff-search-input min-h-10 w-full rounded-xl border border-[#dce9e3] bg-white px-3 py-2 text-sm text-[#334155] outline-none transition-colors placeholder:text-[#64748b] focus:border-[#006747] focus:ring-2 focus:ring-emerald-100"
+                  onChange={(event) =>
+                    setSearchQuery(event.currentTarget.value)
+                  }
+                  placeholder="Search item requests…"
+                  type="search"
+                  value={searchQuery}
+                />
+              </label>
+            </div>
+          </div>
+
+          {resolveError && (
+            <p className="px-6 pt-5 text-sm text-red-700" role="alert">
+              {resolveError}
+              {needsSuperuserLogin && (
+                <>
+                  {" "}
+                  <a className="font-semibold underline" href={adminLoginUrl}>
+                    Sign in to Django admin
+                  </a>
+                </>
+              )}
+            </p>
+          )}
+          {deleteLostItemError && (
+            <p
+              className="delete-report-error px-6 pt-5 text-sm text-red-700"
+              role="alert"
+            >
+              {deleteLostItemError}
+              {needsSuperuserLogin && (
+                <>
+                  {" "}
+                  <a className="font-semibold underline" href={adminLoginUrl}>
+                    Sign in to Django admin
+                  </a>
+                </>
+              )}
+            </p>
+          )}
+          {lostItemsError ? (
+            <p
+              className="px-6 py-10 text-center text-sm text-red-700"
+              role="alert"
+            >
+              {lostItemsError}
+            </p>
+          ) : isLoadingLostItems ? (
+            <p className="px-6 py-10 text-center text-sm text-[#64748b]">
+              Loading lost reports…
+            </p>
+          ) : lostItems.length === 0 ? (
+            <p className="px-6 py-10 text-center text-sm text-[#64748b]">
+              There are no lost reports to resolve.
+            </p>
+          ) : sortedLostItems.length === 0 ? (
+            <p className="px-6 py-10 text-center text-sm text-[#64748b]">
+              No item requests match “{searchQuery.trim()}”.
+            </p>
+          ) : (
+            <ul className="divide-y divide-[#e8efeb]">
+              {sortedLostItems.map((item) => (
+                <li
+                  className="flex flex-col justify-between gap-4 px-6 py-5 sm:flex-row sm:items-center sm:px-8"
+                  key={item.id}
+                >
+                  <div className="flex min-w-0 gap-4">
+                    <ItemPhoto title={item.title} url={item.photo_url} />
+                    <div className="min-w-0">
+                      <p className="font-['Figtree:SemiBold'] font-semibold text-[#17212b]">
+                        {item.title}
+                      </p>
+                      <p className="mt-1 text-sm text-[#64748b]">
+                        {[item.location, item.date && `Lost ${item.date}`]
+                          .filter(Boolean)
+                          .join(" · ") || "No location or date provided"}
+                      </p>
+                      {item.description && (
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-[#64748b]">
+                          {item.description}
+                        </p>
+                      )}
+                      <code className="mt-2 inline-block max-w-full break-all rounded-md border border-[#dce3e0] bg-[#f8faf9] px-2 py-1 font-mono text-xs text-[#334155]">
                         {item.id}
                       </code>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        className="item-retrieved-button rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={deletingItemId !== null}
-                        onClick={() => deleteItem(item)}
-                        type="button"
-                      >
-                        {deletingItemId === item.id
-                          ? "Retrieving…"
-                          : "Item Retrieved"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <button
+                      className="delete-report-button rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={
+                        resolvingItemId !== null || deletingLostItemId !== null
+                      }
+                      onClick={() => deleteLostItem(item)}
+                      type="button"
+                    >
+                      {deletingLostItemId === item.id
+                        ? "Deleting…"
+                        : "Delete report"}
+                    </button>
+                    <button
+                      className="rounded-xl bg-[#006747] px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-white transition-colors hover:bg-[#00523a] disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={
+                        resolvingItemId !== null || deletingLostItemId !== null
+                      }
+                      onClick={() => resolveLostItem(item)}
+                      type="button"
+                    >
+                      {resolvingItemId === item.id
+                        ? "Resolving…"
+                        : "Resolve & Add to Inventory"}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : (
+        <section className="overflow-hidden rounded-3xl border border-[#dce9e3] bg-white shadow-sm">
+          <div className="flex flex-col justify-between gap-4 border-b border-[#dce9e3] p-6 sm:flex-row sm:items-center sm:p-8">
+            <div>
+              <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.14em] text-[#006747] uppercase">
+                Inventory list
+              </p>
+              <h2 className="mt-2 font-['Outfit:Bold'] text-2xl font-bold text-[#17212b]">
+                Found items
+              </h2>
+            </div>
+            <div className="flex flex-col gap-3 sm:items-end">
+              <div className="flex items-center gap-3">
+                <span className="w-fit rounded-full bg-emerald-50 px-3 py-1.5 font-['Figtree:SemiBold'] text-xs font-semibold text-[#006747]">
+                  {isLoading
+                    ? "Loading…"
+                    : searchQuery.trim()
+                      ? `${sortedItems.length} of ${items.length} items`
+                      : `${items.length} items`}
+                </span>
+                <SortMenu
+                  dateSortOrder={dateSortOrder}
+                  onDateSortOrderChange={setDateSortOrder}
+                  onChange={updateSortOption}
+                  selectedOptions={selectedSortOptions}
+                />
+              </div>
+              <label className="block w-full sm:w-64">
+                <span className="sr-only">Search found items</span>
+                <input
+                  className="staff-search-input min-h-10 w-full rounded-xl border border-[#dce9e3] bg-white px-3 py-2 text-sm text-[#334155] outline-none transition-colors placeholder:text-[#64748b] focus:border-[#006747] focus:ring-2 focus:ring-emerald-100"
+                  onChange={(event) =>
+                    setSearchQuery(event.currentTarget.value)
+                  }
+                  placeholder="Search found items…"
+                  type="search"
+                  value={searchQuery}
+                />
+              </label>
+            </div>
           </div>
-        )}
-      </section>
+
+          {selectedItem && (
+            <section
+              aria-label={`Found item report for ${selectedItem.title}`}
+              className="flex flex-col justify-between gap-5 border-b border-[#dce9e3] bg-[#f8faf9] p-6 sm:flex-row sm:items-start sm:p-8"
+              id="selected-item-qr"
+            >
+              <div className="flex min-w-0 gap-4">
+                <ItemPhoto
+                  className="size-16"
+                  title={selectedItem.title}
+                  url={selectedItem.photo_url}
+                />
+                <div className="min-w-0">
+                  <p className="font-['Figtree:Bold'] text-xs font-bold tracking-[0.12em] text-[#006747] uppercase">
+                    Selected found-item report
+                  </p>
+                  <h3 className="mt-1 font-['Outfit:Bold'] text-xl font-bold text-[#17212b]">
+                    {selectedItem.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-[#64748b]">
+                    {[
+                      selectedItem.location,
+                      selectedItem.date
+                        ? new Date(
+                            `${selectedItem.date}T00:00:00`,
+                          ).toLocaleDateString()
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                  {selectedItem.description && (
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-[#334155]">
+                      {selectedItem.description}
+                    </p>
+                  )}
+                  {selectedItem.storage_location && (
+                    <p className="mt-2 text-sm text-[#334155]">
+                      Storage: {selectedItem.storage_location}
+                    </p>
+                  )}
+                  <code className="mt-2 inline-block break-all rounded-md border border-[#dce3e0] bg-white px-2 py-1 font-mono text-xs text-[#334155]">
+                    {selectedItem.id}
+                  </code>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-col items-center gap-3">
+                <ItemQRCode
+                  itemId={selectedItem.id}
+                  size={176}
+                  title={selectedItem.title}
+                />
+                <button
+                  className="rounded-lg border border-[#cbd8d2] bg-white px-3 py-1.5 text-sm font-semibold text-[#334155] hover:bg-emerald-50"
+                  onClick={() => setSelectedItemId(null)}
+                  type="button"
+                >
+                  Close report
+                </button>
+              </div>
+            </section>
+          )}
+
+          {error ? (
+            <div className="px-6 py-12 text-center" role="alert">
+              <p className="font-['Outfit:Bold'] text-xl font-bold text-[#17212b]">
+                {needsSuperuserLogin
+                  ? "Superuser sign-in required"
+                  : "Inventory unavailable"}
+              </p>
+              <p className="mt-2 font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#64748b]">
+                {error}
+              </p>
+              {needsSuperuserLogin && (
+                <a
+                  className="mt-5 inline-flex rounded-xl bg-[#006747] px-4 py-2.5 font-['Figtree:SemiBold'] text-sm font-semibold text-white hover:bg-[#004f3a]"
+                  href={adminLoginUrl}
+                >
+                  Sign in to Django admin
+                </a>
+              )}
+            </div>
+          ) : isLoading ? (
+            <div className="px-6 py-16 text-center text-sm font-medium text-[#64748b]">
+              Loading inventory…
+            </div>
+          ) : items.length === 0 ? (
+            <div className="px-6 py-16 text-center">
+              <p className="font-['Outfit:Bold'] text-xl font-bold text-[#17212b]">
+                No found items yet
+              </p>
+              <p className="mt-2 font-['Figtree:Medium'] text-sm leading-6 font-medium text-[#64748b]">
+                Found items will appear here when they are added.
+              </p>
+            </div>
+          ) : sortedItems.length === 0 ? (
+            <p className="px-6 py-16 text-center text-sm text-[#64748b]">
+              No found items match “{searchQuery.trim()}”.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              {deleteError && (
+                <p className="px-6 py-3 text-sm text-red-700" role="alert">
+                  {deleteError}
+                </p>
+              )}
+              <table className="w-full min-w-[900px] text-left">
+                <thead className="bg-[#f8faf9] font-['Figtree:Bold'] text-[11px] font-bold tracking-[0.08em] text-[#64748b] uppercase">
+                  <tr>
+                    <th className="px-6 py-3">Item</th>
+                    <th className="px-6 py-3">Description</th>
+                    <th className="px-6 py-3">Location found</th>
+                    <th className="px-6 py-3">Date found</th>
+                    <th className="px-6 py-3">Storage location</th>
+                    <th className="px-6 py-3">Item ID</th>
+                    <th className="px-6 py-3">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#e8efeb]">
+                  {sortedItems.map((item) => (
+                    <tr
+                      className="align-top text-sm text-[#334155]"
+                      key={item.id}
+                    >
+                      <td className="px-6 py-4 font-semibold text-[#17212b]">
+                        <div className="flex items-center gap-3">
+                          <ItemPhoto
+                            className="size-12"
+                            title={item.title}
+                            url={item.photo_url}
+                          />
+                          <button
+                            aria-controls="selected-item-qr"
+                            aria-expanded={selectedItemId === item.id}
+                            aria-label={`View report and QR code for ${item.title}`}
+                            className="cursor-pointer text-left hover:text-[#006747] hover:underline"
+                            onClick={() =>
+                              setSelectedItemId((currentId) =>
+                                currentId === item.id ? null : item.id,
+                              )
+                            }
+                            type="button"
+                          >
+                            {item.title}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="max-w-sm whitespace-pre-wrap px-6 py-4">
+                        {item.description || "—"}
+                      </td>
+                      <td className="px-6 py-4">{item.location || "—"}</td>
+                      <td className="px-6 py-4">
+                        {item.date
+                          ? new Date(
+                              `${item.date}T00:00:00`,
+                            ).toLocaleDateString()
+                          : "—"}
+                      </td>
+                      <td className="px-6 py-4">
+                        {item.storage_location || "—"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <code className="inventory-item-id inline-block max-w-[190px] break-all rounded-md border border-[#dce3e0] bg-[#f8faf9] px-2.5 py-1.5 font-mono text-xs text-[#334155]">
+                          {item.id}
+                        </code>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          className="item-retrieved-button rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={deletingItemId !== null}
+                          onClick={() => deleteItem(item)}
+                          type="button"
+                        >
+                          {deletingItemId === item.id
+                            ? "Retrieving…"
+                            : "Item Retrieved"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
     </div>
   )
